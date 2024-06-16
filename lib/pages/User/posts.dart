@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:tutorinsa/pages/User/createpost.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'videos.dart'; // Importez votre fichier videos.dart
 
@@ -37,32 +38,33 @@ class _UserPageState extends State<UserPage> {
       _searchTerm = value.toLowerCase();
     });
   }
-void _onItemTapped(int index) {
-  if (index == 1) {
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const VideosPage(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          var begin = Offset(1.0, 0.0);
-          var end = Offset.zero;
-          var curve = Curves.ease;
 
-          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+  void _onItemTapped(int index) {
+    if (index == 1) {
+      Navigator.push(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => const VideosPage(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            var begin = const Offset(1.0, 0.0);
+            var end = Offset.zero;
+            var curve = Curves.ease;
 
-          return SlideTransition(
-            position: animation.drive(tween),
-            child: child,
-          );
-        },
-      ),
-    );
-  } else {
-    setState(() {
-      _selectedIndex = index;
-    });
+            var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+
+            return SlideTransition(
+              position: animation.drive(tween),
+              child: child,
+            );
+          },
+        ),
+      );
+    } else {
+      setState(() {
+        _selectedIndex = index;
+      });
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -106,11 +108,9 @@ void _onItemTapped(int index) {
                         ClipRect(
                           child: Align(
                             alignment: Alignment.center,
-                            heightFactor:
-                                0.7, // Adjust this value to control the crop
+                            heightFactor: 0.7, // Adjust this value to control the crop
                             child: RawImage(
-                              image: snapshot
-                                  .data, // Utilisez RawImage pour afficher l'image dart:ui.Image
+                              image: snapshot.data, // Utilisez RawImage pour afficher l'image dart:ui.Image
                             ),
                           ),
                         ),
@@ -127,9 +127,7 @@ void _onItemTapped(int index) {
                                   shape: BoxShape.circle,
                                 ),
                               ),
-                              const SizedBox(
-                                  width:
-                                      5), // Espacement entre le point et le texte
+                              const SizedBox(width: 5), // Espacement entre le point et le texte
                               const Text(
                                 'En Live',
                                 style: TextStyle(
@@ -192,6 +190,17 @@ void _onItemTapped(int index) {
               selectedIndex: _selectedIndex,
               onItemTapped: _onItemTapped,
             ),
+            floatingActionButton: FloatingActionButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const CreatePost()),
+                );
+              },
+              backgroundColor: const ui.Color(0xFF5F67EA),
+              child: const Icon(Icons.add, color: Colors.white),
+            ),
+            floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
           );
         } else {
           return Container(
@@ -377,4 +386,3 @@ Widget NavigationBar({
     ),
   );
 }
-
