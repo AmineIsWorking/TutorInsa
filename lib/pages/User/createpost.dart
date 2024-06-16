@@ -16,6 +16,7 @@ class _CreatePostState extends State<CreatePost> {
   final TextEditingController _tagController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
   XFile? _image;
+  OverlayEntry? _overlayEntry;
 
   void _addTag(String tag) {
     setState(() {
@@ -43,12 +44,43 @@ class _CreatePostState extends State<CreatePost> {
     });
   }
 
+  void _showOverlay(BuildContext context) {
+    _overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+        left: 20,
+        right: 20,
+        child: Material(
+          color: Colors.white,
+          elevation: 4.0,
+          borderRadius: BorderRadius.circular(10),
+          child: TextField(
+            controller: _tagController,
+            onSubmitted: (value) {
+              _overlayEntry?.remove();
+              _overlayEntry = null;
+              if (value.isNotEmpty) {
+                _addTag(value);
+              }
+            },
+            decoration: const InputDecoration(
+              hintText: 'Ajouter un tag',
+              contentPadding: EdgeInsets.all(10.0),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    Overlay.of(context).insert(_overlayEntry!);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: Icon(Icons.close),
+          icon: const Icon(Icons.close),
           onPressed: () {
             Navigator.pop(context);
           },
@@ -98,7 +130,7 @@ class _CreatePostState extends State<CreatePost> {
                           child: Container(
                             color: Colors.black54,
                             child: IconButton(
-                              icon: Icon(Icons.close, color: Colors.white),
+                              icon: const Icon(Icons.close, color: Colors.white),
                               onPressed: () {
                                 setState(() {
                                   _image = null;
@@ -128,40 +160,13 @@ class _CreatePostState extends State<CreatePost> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Padding(
-                  padding: const EdgeInsets.all(20.0), // Ajustez la valeur en fonction de vos besoins
-                  child: Row(
-                    children: [
-                      const Icon(Icons.label),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          controller: _tagController,
-                          decoration: const InputDecoration(
-                            hintText: 'Ajouter un tag...',
-                            border: InputBorder.none,
-                          ),
-                          onSubmitted: (tag) {
-                            if (tag.isNotEmpty) {
-                              _addTag(tag);
-                            }
-                          },
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.image),
-                        color: const Color(0xFF5F67EA),
-                        iconSize: 40.0,
-                        onPressed: _pickImage,
-                      ),
-                    ],
-                  ),
+                ElevatedButton(
+                  onPressed: () => _showOverlay(context),
+                  child: const Text('Ajouter un tag'),
                 ),
                 const SizedBox(height: 16),
                 Center(
                   child: ElevatedButton(
-                    //placement du bouton publier
-                    
                     onPressed: _publishPost,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF5F67EA),

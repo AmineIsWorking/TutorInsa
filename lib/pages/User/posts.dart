@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:tutorinsa/pages/User/createpost.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'videos.dart'; // Importez votre fichier videos.dart
+import 'rdv.dart'; // Importez votre fichier rdv.dart
 
 class UserPage extends StatefulWidget {
   const UserPage({super.key});
@@ -45,6 +46,25 @@ class _UserPageState extends State<UserPage> {
         context,
         PageRouteBuilder(
           pageBuilder: (context, animation, secondaryAnimation) => const VideosPage(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            var begin = const Offset(1.0, 0.0);
+            var end = Offset.zero;
+            var curve = Curves.ease;
+
+            var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+
+            return SlideTransition(
+              position: animation.drive(tween),
+              child: child,
+            );
+          },
+        ),
+      );
+    } else if (index == 3) { // Nouvelle condition pour l'élément "RDV"
+      Navigator.push(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => const RDVPage(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             var begin = const Offset(1.0, 0.0);
             var end = Offset.zero;
@@ -386,3 +406,5 @@ Widget NavigationBar({
     ),
   );
 }
+
+             
