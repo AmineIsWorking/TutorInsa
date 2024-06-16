@@ -13,15 +13,28 @@ class _CreatePostState extends State<CreatePost> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _contentController = TextEditingController();
   final List<String> _tags = [];
-  final TextEditingController _tagController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
   XFile? _image;
-  OverlayEntry? _overlayEntry;
+  String? _selectedSubject;
+
+  // Liste prédéfinie de matières
+  final List<String> _subjects = [
+    'Mathématiques',
+    'Physique',
+    'Chimie',
+    'Biologie',
+    'Informatique',
+    'Histoire',
+    'Géographie',
+    'Anglais',
+    'Français',
+    'Espagnol',
+    // Ajoutez plus de matières si nécessaire
+  ];
 
   void _addTag(String tag) {
     setState(() {
       _tags.add(tag);
-      _tagController.clear();
     });
   }
 
@@ -42,37 +55,6 @@ class _CreatePostState extends State<CreatePost> {
     setState(() {
       _image = pickedFile;
     });
-  }
-
-  void _showOverlay(BuildContext context) {
-    _overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-        left: 20,
-        right: 20,
-        child: Material(
-          color: Colors.white,
-          elevation: 4.0,
-          borderRadius: BorderRadius.circular(10),
-          child: TextField(
-            controller: _tagController,
-            onSubmitted: (value) {
-              _overlayEntry?.remove();
-              _overlayEntry = null;
-              if (value.isNotEmpty) {
-                _addTag(value);
-              }
-            },
-            decoration: const InputDecoration(
-              hintText: 'Ajouter un tag',
-              contentPadding: EdgeInsets.all(10.0),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    Overlay.of(context).insert(_overlayEntry!);
   }
 
   @override
@@ -160,11 +142,44 @@ class _CreatePostState extends State<CreatePost> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                ElevatedButton(
-                  onPressed: () => _showOverlay(context),
-                  child: const Text('Ajouter un tag'),
+              Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Row(
+                  children: [
+                    const Icon(Icons.label),
+                    const SizedBox(width: 8),
+                    Container(
+                      width: 171.0,
+                      child: DropdownButton<String>(
+                        value: _selectedSubject,
+                        hint: const Text('Ajoutez une matière'),
+                        items: _subjects.map((subject) {
+                          return DropdownMenuItem<String>(
+                            value: subject,
+                            child: Text(subject),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedSubject = value;
+                            if (value != null) {
+                              _addTag(value);
+                            }
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 90.0), // Ajoutez cette ligne
+                    IconButton(
+                      icon: const Icon(Icons.image),
+                      color: const Color(0xFF5F67EA),
+                      iconSize: 40.0,
+                      onPressed: _pickImage,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
+              ),
+                const SizedBox(height: 5),
                 Center(
                   child: ElevatedButton(
                     onPressed: _publishPost,
@@ -177,7 +192,7 @@ class _CreatePostState extends State<CreatePost> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 70),
               ],
             ),
           ),
