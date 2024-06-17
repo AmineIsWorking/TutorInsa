@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:tutorinsa/pages/home/home.dart';
+import 'package:tutorinsa/pages/Common/home.dart';
 
 void main() {
   runApp(const MyApp());

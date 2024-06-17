@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:tutorinsa/pages/User/createpost.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:animations/animations.dart';
 import 'videos.dart'; // Importez votre fichier videos.dart
 import 'rdv.dart'; // Importez votre fichier rdv.dart
 
@@ -45,13 +46,16 @@ class _UserPageState extends State<UserPage> {
       Navigator.push(
         context,
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const VideosPage(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const VideosPage(),
+          transitionsBuilder:
+              (context, animation, secondaryAnimation, child) {
             var begin = const Offset(1.0, 0.0);
             var end = Offset.zero;
             var curve = Curves.ease;
 
-            var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+            var tween = Tween(begin: begin, end: end)
+                .chain(CurveTween(curve: curve));
 
             return SlideTransition(
               position: animation.drive(tween),
@@ -60,17 +64,21 @@ class _UserPageState extends State<UserPage> {
           },
         ),
       );
-    } else if (index == 3) { // Nouvelle condition pour l'élément "RDV"
+    } else if (index == 3) {
+      // Nouvelle condition pour l'élément "RDV"
       Navigator.push(
         context,
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const RDVPage(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const RDVPage(),
+          transitionsBuilder:
+              (context, animation, secondaryAnimation, child) {
             var begin = const Offset(1.0, 0.0);
             var end = Offset.zero;
             var curve = Curves.ease;
 
-            var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+            var tween = Tween(begin: begin, end: end)
+                .chain(CurveTween(curve: curve));
 
             return SlideTransition(
               position: animation.drive(tween),
@@ -128,9 +136,11 @@ class _UserPageState extends State<UserPage> {
                         ClipRect(
                           child: Align(
                             alignment: Alignment.center,
-                            heightFactor: 0.7, // Adjust this value to control the crop
+                            heightFactor:
+                                0.7, // Adjust this value to control the crop
                             child: RawImage(
-                              image: snapshot.data, // Utilisez RawImage pour afficher l'image dart:ui.Image
+                              image: snapshot.data,
+                              // Utilisez RawImage pour afficher l'image dart:ui.Image
                             ),
                           ),
                         ),
@@ -147,7 +157,9 @@ class _UserPageState extends State<UserPage> {
                                   shape: BoxShape.circle,
                                 ),
                               ),
-                              const SizedBox(width: 5), // Espacement entre le point et le texte
+                              const SizedBox(
+                                  width:
+                                      5), // Espacement entre le point et le texte
                               const Text(
                                 'En Live',
                                 style: TextStyle(
@@ -200,9 +212,18 @@ class _UserPageState extends State<UserPage> {
                       ),
                     ),
                   ),
-                  _buildPost('Aidez moi en Prog C 🙏🏼', 'Bonjour, je suis bloqué sur un exercice de Prog C de Mr ADELL, pouvez-vous m\'aider ?', 'assets/images/Buffer overflow.jpg'),
-                  _buildPost('Aidez moi en Java 🙏🏼', 'Bonjour, je suis bloqué sur un exercice de Java de Mr Eichler, pouvez-vous m\'aider ?', 'assets/images/java.png'),
-                  _buildPost('Aidez moi en RDM 🙏🏼', 'Bonjour, je suis bloqué sur un exercice de RDM de Mr Zeng, pouvez-vous m\'aider ?', 'assets/images/RDM.png'),
+                  _buildPost(
+                      'Aidez moi en Prog C 🙏🏼',
+                      'Bonjour, je suis bloqué sur un exercice de Prog C de Mr ADELL, pouvez-vous m\'aider ?',
+                      'assets/images/Buffer overflow.jpg'),
+                  _buildPost(
+                      'Aidez moi en Java 🙏🏼',
+                      'Bonjour, je suis bloqué sur un exercice de Java de Mr Eichler, pouvez-vous m\'aider ?',
+                      'assets/images/java.png'),
+                  _buildPost(
+                      'Aidez moi en RDM 🙏🏼',
+                      'Bonjour, je suis bloqué sur un exercice de RDM de Mr Zeng, pouvez-vous m\'aider ?',
+                      'assets/images/RDM.png'),
                 ],
               ),
             ),
@@ -210,17 +231,29 @@ class _UserPageState extends State<UserPage> {
               selectedIndex: _selectedIndex,
               onItemTapped: _onItemTapped,
             ),
-            floatingActionButton: FloatingActionButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const CreatePost()),
+            floatingActionButton: OpenContainer(
+              closedShape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(
+                  Radius.circular(28.0),
+                ),
+              ),
+              closedColor: const Color(0xFF5F67EA),
+              closedElevation: 6.0,
+              transitionDuration: const Duration(milliseconds: 500),
+              closedBuilder:
+                  (BuildContext context, VoidCallback openContainer) {
+                return FloatingActionButton(
+                  onPressed: openContainer,
+                  backgroundColor: const Color(0xFF5F67EA),
+                  child: const Icon(Icons.add, color: Colors.white),
                 );
               },
-              backgroundColor: const ui.Color(0xFF5F67EA),
-              child: const Icon(Icons.add, color: Colors.white),
+              openBuilder: (BuildContext context, VoidCallback _) {
+                return const CreatePost();
+              },
             ),
-            floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+            floatingActionButtonLocation:
+                FloatingActionButtonLocation.endFloat,
           );
         } else {
           return Container(
