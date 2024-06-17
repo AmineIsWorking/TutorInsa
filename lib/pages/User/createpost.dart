@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -16,6 +17,7 @@ class _CreatePostState extends State<CreatePost> {
   final ImagePicker _picker = ImagePicker();
   XFile? _image;
   String? _selectedSubject;
+  CollectionReference postsrefs = FirebaseFirestore.instance.collection("Posts");
 
   // Liste prédéfinie de matières
   final List<String> _subjects = [
@@ -47,6 +49,13 @@ class _CreatePostState extends State<CreatePost> {
   void _publishPost() {
     // Ajoutez votre logique de publication ici
     print("Post publié avec titre : ${_titleController.text}, contenu : ${_contentController.text}, tags : $_tags, image : ${_image?.path}");
+
+    postsrefs.add({
+      "Titre": _titleController.text,
+      "Contenu": _contentController.text,
+      "Tag": _tags,
+      "Image": _titleController.text
+    });
   }
 
   Future<void> _pickImage() async {
