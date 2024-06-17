@@ -1,153 +1,115 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'createRdv.dart'; // Importez votre fichier create_rdv.dart
 
-class RDVPage extends StatefulWidget {
-  const RDVPage({Key? key}) : super(key: key);
+class RendezVousPage extends StatefulWidget {
+  const RendezVousPage({super.key});
 
   @override
-  _RDVPageState createState() => _RDVPageState();
+  _RendezVousPageState createState() => _RendezVousPageState();
 }
 
-class _RDVPageState extends State<RDVPage> {
-  final List<String> matieres = [
-    'Mathématiques',
-    'Physique',
-    'Chimie',
-    'Biologie',
-    'Histoire',
-    'Géographie',
-    'Français',
-    'Anglais',
-  ];
+class _RendezVousPageState extends State<RendezVousPage> {
+  List<Map<String, dynamic>> _upcomingRDVs = [];
+  List<Map<String, dynamic>> _pastRDVs = [];
 
-  String? selectedMatiere;
-  DateTime? selectedDate;
-  TimeOfDay? selectedTime;
+  @override
+  void initState() {
+    super.initState();
+    _fetchRendezVous();
+  }
 
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime(2101),
-    );
-    if (picked != null && picked != selectedDate) {
-      setState(() {
-        selectedDate = picked;
-      });
+  Future<void> _fetchRendezVous() async {
+    CollectionReference rendezVousRef = FirebaseFirestore.instance.collection('RendezVous');
+    QuerySnapshot querySnapshot = await rendezVousRef.get();
+
+    final now = DateTime.now();
+    final upcomingRDVs = <Map<String, dynamic>>[];
+    final pastRDVs = <Map<String, dynamic>>[];
+
+    for (var doc in querySnapshot.docs) {
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+      DateTime rdvDate = (data['date'] as Timestamp).toDate();
+      data['id'] = doc.id;  // Add document ID to the data
+
+      // Fetch user who initiated the RDV
+      if (data['initiatedBy'] != null) {
+        DocumentSnapshot userSnapshot = await FirebaseFirestore.instance.collection('Users').doc(data['initiatedBy']).get();
+        data['initiatedByUser'] = userSnapshot.data();
+      }
+
+      if (rdvDate.isAfter(now)) {
+        upcomingRDVs.add(data);
+      } else {
+        pastRDVs.add(data);
+      }
     }
+
+    setState(() {
+      _upcomingRDVs = upcomingRDVs;
+      _pastRDVs = pastRDVs;
+    });
   }
 
-  Future<void> _selectTime(BuildContext context) async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.now(),
+  Widget _buildRendezVousList(List<Map<String, dynamic>> rdvs) {
+    return ListView.builder(
+      itemCount: rdvs.length,
+      itemBuilder: (context, index) {
+        final rdv = rdvs[index];
+        final rdvDate = (rdv['date'] as Timestamp).toDate();
+        final rdvTime = rdv['heure'] ?? 'No time provided';
+        final initiator = rdv['initiatedByUser'] != null
+            ? '${rdv['initiatedByUser']['Nom']} ${rdv['initiatedByUser']['Prenom']}'
+            : 'Unknown';
+
+        return ListTile(
+          title: Text(rdv['description'] ?? 'No Description'),
+          subtitle: Text('Date: ${rdvDate.toLocal()} \nHeure: $rdvTime \nInitiated by: $initiator'),
+        );
+      },
     );
-    if (picked != null && picked != selectedTime) {
-      setState(() {
-        selectedTime = picked;
-      });
-    }
-  }
-
-  String? get formattedDate {
-    if (selectedDate == null) return null;
-    return "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}";
-  }
-
-  String? get formattedTime {
-    if (selectedTime == null) return null;
-    return "${selectedTime!.hour}:${selectedTime!.minute.toString().padLeft(2, '0')}";
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Prendre rendez-vous'),
+        title: const Text('Mes RDV'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      body: DefaultTabController(
+        length: 2,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Choisir une matière',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            const TabBar(
+              tabs: [
+                Tab(text: 'À venir'),
+                Tab(text: 'Passés'),
+              ],
             ),
-            DropdownButton<String>(
-              value: selectedMatiere,
-              hint: const Text('Sélectionnez une matière'),
-              isExpanded: true,
-              items: matieres.map((String matiere) {
-                return DropdownMenuItem<String>(
-                  value: matiere,
-                  child: Text(matiere),
-                );
-              }).toList(),
-              onChanged: (String? newValue) {
-                setState(() {
-                  selectedMatiere = newValue;
-                });
-              },
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Choisir une date',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            TextField(
-              readOnly: true,
-              decoration: InputDecoration(
-                hintText: formattedDate ?? 'Sélectionnez une date',
-              ),
-              onTap: () => _selectDate(context),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Choisir une heure',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            TextField(
-              readOnly: true,
-              decoration: InputDecoration(
-                hintText: formattedTime ?? 'Sélectionnez une heure',
-              ),
-              onTap: () => _selectTime(context),
-            ),
-            const SizedBox(height: 32),
-            Center(
-              child: ElevatedButton(
-                onPressed: selectedMatiere != null && selectedDate != null && selectedTime != null
-                    ? () {
-                  // Action à réaliser lors de la confirmation du rendez-vous
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Rendez-vous confirmé'),
-                      content: Text(
-                          'Vous avez choisi ${selectedMatiere!} le ${formattedDate!} à ${formattedTime!}.'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('OK'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-                    : null,
-                child: const Text('Confirmer le rendez-vous'),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  _buildRendezVousList(_upcomingRDVs),
+                  _buildRendezVousList(_pastRDVs),
+                ],
               ),
             ),
           ],
         ),
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const createRdv()),
+          );
+        },
+        backgroundColor: const Color(0xFF5F67EA),
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }
 
-void main() {
-  runApp(const MaterialApp(
-    home: RDVPage(),
-  ));
-}
+
