@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'createRdv.dart'; // Importez votre fichier create_rdv.dart
 
 class RendezVousPage extends StatefulWidget {
@@ -20,8 +21,17 @@ class _RendezVousPageState extends State<RendezVousPage> {
   }
 
   Future<void> _fetchRendezVous() async {
-    CollectionReference rendezVousRef = FirebaseFirestore.instance.collection('RendezVous');
-    QuerySnapshot querySnapshot = await rendezVousRef.get();
+    // Récupérez l'identifiant de l'utilisateur à partir de SharedPreferences
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? userId = prefs.getString('userId');
+
+    if (userId == null) {
+      // Gérez l'erreur si l'utilisateur n'est pas connecté ou si l'ID utilisateur est manquant
+      return;
+    }
+
+    CollectionReference rendezVousRef = FirebaseFirestore.instance.collection('Rendezvous');
+    QuerySnapshot querySnapshot = await rendezVousRef.where('InitiatedBy', isEqualTo: userId).get();
 
     final now = DateTime.now();
     final upcomingRDVs = <Map<String, dynamic>>[];
@@ -29,12 +39,16 @@ class _RendezVousPageState extends State<RendezVousPage> {
 
     for (var doc in querySnapshot.docs) {
       Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-      DateTime rdvDate = (data['date'] as Timestamp).toDate();
+      DateTime rdvDate = DateTime.parse(data['Date']);
+      TimeOfDay rdvTime = TimeOfDay(
+        hour: int.parse(data['Time'].split(':')[0]),
+        minute: int.parse(data['Time'].split(':')[1]),
+      );
       data['id'] = doc.id;  // Add document ID to the data
 
       // Fetch user who initiated the RDV
-      if (data['initiatedBy'] != null) {
-        DocumentSnapshot userSnapshot = await FirebaseFirestore.instance.collection('Users').doc(data['initiatedBy']).get();
+      if (data['InitiatedBy'] != null) {
+        DocumentSnapshot userSnapshot = await FirebaseFirestore.instance.collection('Users').doc(data['InitiatedBy']).get();
         data['initiatedByUser'] = userSnapshot.data();
       }
 
@@ -56,14 +70,14 @@ class _RendezVousPageState extends State<RendezVousPage> {
       itemCount: rdvs.length,
       itemBuilder: (context, index) {
         final rdv = rdvs[index];
-        final rdvDate = (rdv['date'] as Timestamp).toDate();
-        final rdvTime = rdv['heure'] ?? 'No time provided';
+        final rdvDate = DateTime.parse(rdv['Date']);
+        final rdvTime = rdv['Time'];
         final initiator = rdv['initiatedByUser'] != null
             ? '${rdv['initiatedByUser']['Nom']} ${rdv['initiatedByUser']['Prenom']}'
             : 'Unknown';
 
         return ListTile(
-          title: Text(rdv['description'] ?? 'No Description'),
+          title: Text(rdv['Matiere'] ?? 'No Description'),
           subtitle: Text('Date: ${rdvDate.toLocal()} \nHeure: $rdvTime \nInitiated by: $initiator'),
         );
       },
@@ -102,7 +116,9 @@ class _RendezVousPageState extends State<RendezVousPage> {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const createRdv()),
-          );
+          ).then((value) {
+            _fetchRendezVous(); // Rafraîchit la liste des rendez-vous après la création d'un nouveau RDV
+          });
         },
         backgroundColor: const Color(0xFF5F67EA),
         child: const Icon(Icons.add, color: Colors.white),
@@ -111,5 +127,3 @@ class _RendezVousPageState extends State<RendezVousPage> {
     );
   }
 }
-
-

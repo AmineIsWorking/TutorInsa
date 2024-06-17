@@ -1,4 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class createRdv extends StatefulWidget {
   const createRdv({Key? key}) : super(key: key);
@@ -57,6 +59,39 @@ class _RDVPageState extends State<createRdv> {
   String? get formattedTime {
     if (selectedTime == null) return null;
     return "${selectedTime!.hour}:${selectedTime!.minute.toString().padLeft(2, '0')}";
+  }
+
+  Future<void> _confirmRdv() async {
+    // Récupérez l'identifiant de l'utilisateur à partir de SharedPreferences
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? userId = prefs.getString('userId');
+
+    if (userId != null && selectedMatiere != null && selectedDate != null && selectedTime != null) {
+      // Créez un nouvel enregistrement de rendez-vous dans Firestore
+      CollectionReference rdvs = FirebaseFirestore.instance.collection('Rendezvous');
+      await rdvs.add({
+        'Matiere': selectedMatiere,
+        'Date': "${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}",
+        'Time': "${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}",
+        'InitiatedBy': userId,
+      });
+
+      // Affichez une boîte de dialogue de confirmation
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Rendez-vous confirmé'),
+          content: Text(
+              'Vous avez choisi ${selectedMatiere!} le ${formattedDate!} à ${formattedTime!}.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   @override
@@ -118,23 +153,7 @@ class _RDVPageState extends State<createRdv> {
             Center(
               child: ElevatedButton(
                 onPressed: selectedMatiere != null && selectedDate != null && selectedTime != null
-                    ? () {
-                  // Action à réaliser lors de la confirmation du rendez-vous
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Rendez-vous confirmé'),
-                      content: Text(
-                          'Vous avez choisi ${selectedMatiere!} le ${formattedDate!} à ${formattedTime!}.'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('OK'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
+                    ? _confirmRdv
                     : null,
                 child: const Text('Confirmer le rendez-vous'),
               ),
@@ -145,6 +164,3 @@ class _RDVPageState extends State<createRdv> {
     );
   }
 }
-
-
-

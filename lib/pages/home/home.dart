@@ -1,9 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tutorinsa/pages/User/posts.dart';
 import 'package:tutorinsa/pages/home/subscribe.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -28,8 +27,12 @@ class _HomePageState extends State<HomePage> {
         .get();
 
     if (querySnapshot.docs.isNotEmpty) {
-      // Utilisateur trouvé, sauvegarder l'ID de l'utilisateur
-      _saveUserId(querySnapshot.docs.first.id);
+      // Utilisateur trouvé
+      String userId = querySnapshot.docs[0].id;
+
+      // Stocker l'ID de l'utilisateur localement
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString('userId', userId);
 
       // Naviguer vers UserPage
       Navigator.push(
@@ -70,11 +73,6 @@ class _HomePageState extends State<HomePage> {
         },
       );
     }
-  }
-
-  Future<void> _saveUserId(String userId) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString('userId', userId);
   }
 
   @override
