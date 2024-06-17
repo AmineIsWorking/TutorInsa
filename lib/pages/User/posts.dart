@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:tutorinsa/pages/User/createpost.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'videos.dart'; // Importez votre fichier videos.dart
@@ -21,10 +22,10 @@ class _UserPageState extends State<UserPage> {
   Future<ui.Image> _loadImage(BuildContext context) {
     final Completer<ui.Image> completer = Completer();
     final Image image =
-        Image.network('https://img.youtube.com/vi/N_WgBU3S9W8/hqdefault.jpg');
+    Image.network('https://img.youtube.com/vi/N_WgBU3S9W8/hqdefault.jpg');
     image.image.resolve(const ImageConfiguration()).addListener(
       ImageStreamListener(
-        (ImageInfo image, bool synchronousCall) {
+            (ImageInfo image, bool synchronousCall) {
           if (!completer.isCompleted) {
             completer.complete(image.image);
           }
@@ -200,9 +201,7 @@ class _UserPageState extends State<UserPage> {
                       ),
                     ),
                   ),
-                  _buildPost('Aidez moi en Prog C 🙏🏼', 'Bonjour, je suis bloqué sur un exercice de Prog C de Mr ADELL, pouvez-vous m\'aider ?', 'assets/images/Buffer overflow.jpg'),
-                  _buildPost('Aidez moi en Java 🙏🏼', 'Bonjour, je suis bloqué sur un exercice de Java de Mr Eichler, pouvez-vous m\'aider ?', 'assets/images/java.png'),
-                  _buildPost('Aidez moi en RDM 🙏🏼', 'Bonjour, je suis bloqué sur un exercice de RDM de Mr Zeng, pouvez-vous m\'aider ?', 'assets/images/RDM.png'),
+                  _buildPostsList(),
                 ],
               ),
             ),
@@ -233,10 +232,36 @@ class _UserPageState extends State<UserPage> {
     );
   }
 
+  Widget _buildPostsList() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('Posts').snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        var documents = snapshot.data!.docs;
+        if (_searchTerm.isNotEmpty) {
+          documents = documents.where((doc) {
+            final title = doc['Titre'].toString().toLowerCase();
+            return title.contains(_searchTerm);
+          }).toList();
+        }
+
+        return ListView.builder(
+          shrinkWrap: true, // Add this line
+          physics: const NeverScrollableScrollPhysics(), // Add this line
+          itemCount: documents.length,
+          itemBuilder: (context, index) {
+            final doc = documents[index];
+            return _buildPost(doc['Titre'], doc['Contenu'], doc['Image']);
+          },
+        );
+      },
+    );
+  }
+
   Widget _buildPost(String title, String content, String imagePath) {
-    if (_searchTerm.isNotEmpty && !title.toLowerCase().contains(_searchTerm)) {
-      return Container();
-    }
     return Container(
       margin: const EdgeInsets.all(10),
       padding: const EdgeInsets.all(10),
@@ -282,11 +307,13 @@ class _UserPageState extends State<UserPage> {
               alignment: Alignment.centerRight,
               child: Container(
                 margin: const EdgeInsets.only(right: 0),
-                child: Image.asset(
+                child: imagePath.isNotEmpty
+                    ? Image.network(
                   imagePath,
                   width: 500,
                   height: 200,
-                ),
+                )
+                    : const SizedBox.shrink(),
               ),
             ),
           ],
@@ -406,5 +433,3 @@ Widget NavigationBar({
     ),
   );
 }
-
-             
