@@ -52,7 +52,6 @@ class _UserPageState extends State<UserPage> {
     return FutureBuilder<ui.Image>(
       future: _loadImage(context),
       builder: (BuildContext context, AsyncSnapshot<ui.Image> snapshot) {
-        if (snapshot.connectionState == ConnectionState.done) {
           return Scaffold(
             appBar: AppBar(
               backgroundColor: const ui.Color(0xFF5F67EA),
@@ -207,15 +206,7 @@ class _UserPageState extends State<UserPage> {
             ),
             floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
           );
-        } else {
-          return Container(
-            color: const ui.Color.fromARGB(255, 20, 121, 121),
-            child: const Center(
-              child: CircularProgressIndicator(),
-            ),
-          );
-        }
-      },
+        } 
     );
   }
 

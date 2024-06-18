@@ -148,6 +148,10 @@ class _RDVPageState extends State<RDVPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mes Rendez-vous'),
+        titleTextStyle: const TextStyle(
+          color: Color.fromARGB(255, 0, 0, 0),
+          fontSize: 20,
+        ),
         automaticallyImplyLeading: false,
         actions: <Widget>[
           Builder(
