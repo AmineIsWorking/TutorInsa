@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tutorinsa/pages/Common/navigation_bar.dart';
-import 'package:tutorinsa/pages/User/chatpage.dart';
+import 'package:tutorinsa/pages/Common/chatpage.dart';
 
 class ReceptPage extends StatefulWidget {
   const ReceptPage({super.key});

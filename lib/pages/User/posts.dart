@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:tutorinsa/pages/User/createpost.dart';
+import 'package:tutorinsa/pages/Common/profilepage.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'package:animations/animations.dart';
 import 'package:tutorinsa/pages/Common/navigation_bar.dart';
@@ -68,7 +69,12 @@ class _UserPageState extends State<UserPage> {
                       image: AssetImage("assets/images/avatar2.png")),
                   tooltip: 'Profil de l\'utilisateur',
                   onPressed: () {
-                    // Add your logic here to open the user's profile
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ProfilePage(),
+                      ),
+                    );
                   },
                 ),
               ],
