@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tutorinsa/pages/User/createpost.dart';
 import 'package:tutorinsa/pages/Common/profilepage.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
@@ -20,6 +21,8 @@ class _UserPageState extends State<UserPage> {
   String _searchTerm = '';
   int _selectedIndex = 0;
   final List<String> _selectedTags = [];
+  String? _userName;
+  String? _userImage;
 
   final List<String> _tags = [
     'Mathématiques',
@@ -33,6 +36,27 @@ class _UserPageState extends State<UserPage> {
     'Français',
     'Espagnol'
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? email = prefs.getString('userEmail');
+    if (email != null) {
+      DocumentSnapshot userSnapshot =
+          await FirebaseFirestore.instance.collection('Users').doc(email).get();
+      if (userSnapshot.exists) {
+        setState(() {
+          _userName = userSnapshot['Prénom'];
+          _userImage = userSnapshot['Image'];
+        });
+      }
+    }
+  }
 
   Future<ui.Image> _loadImage(BuildContext context) {
     final Completer<ui.Image> completer = Completer();
@@ -72,17 +96,21 @@ class _UserPageState extends State<UserPage> {
             appBar: AppBar(
               backgroundColor: const ui.Color(0xFF5F67EA),
               automaticallyImplyLeading: false,
-              title: const Text('Welcome, Amine'),
-              titleTextStyle: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+              title: Text(
+                'Welcome, ${_userName ?? 'User'}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               actions: <Widget>[
                 IconButton(
-                  icon: const Image(
-                    image: AssetImage("assets/images/avatar2.png"),
-                  ),
+                  icon: _userImage != null
+                      ? CircleAvatar(
+                          backgroundImage: NetworkImage(_userImage!),
+                        )
+                      : const Icon(Icons.account_circle, size: 30),
                   tooltip: 'Profil de l\'utilisateur',
                   onPressed: () {
                     Navigator.push(
@@ -269,7 +297,7 @@ class _UserPageState extends State<UserPage> {
     );
   }
 
-  Widget _buildPostsList() {
+ Widget _buildPostsList() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('Posts').snapshots(),
       builder: (context, snapshot) {
@@ -280,13 +308,11 @@ class _UserPageState extends State<UserPage> {
         var documents = snapshot.data!.docs;
 
         // Filtre par titre et/ou tags
-        print(_searchTerm);
-        print(_selectedTags);
         if (_searchTerm.isNotEmpty || _selectedTags.isNotEmpty) {
           final searchTermLower = _searchTerm.toLowerCase();
           documents = documents.where((doc) {
-            final title = doc['Titre'].toString().toLowerCase();
-            final tags = List<String>.from(doc['Tags']);
+            final title = doc['Titre']?.toString().toLowerCase() ?? '';
+            final tags = List<String>.from(doc['Tags'] ?? []);
 
             // Vérifier si le titre contient le terme de recherche
             bool titleMatches = title.contains(searchTermLower);
@@ -308,37 +334,39 @@ class _UserPageState extends State<UserPage> {
           }).toList();
         }
 
-        print('Nombre de documents après filtrage: ${documents.length}');
-
         return ListView.builder(
           shrinkWrap: true,
           physics: NeverScrollableScrollPhysics(),
           itemCount: documents.length,
           itemBuilder: (context, index) {
             final doc = documents[index];
-            final title = doc['Titre'];
-            final content = doc['Contenu'];
-            final postImagePath = doc['Image'];
-            final tags = List<String>.from(doc['Tags']);
-            final publishedBy = doc['PublishedBy']; // Nom du champ qui contient l'ID de l'utilisateur
+            final title = doc['Titre'] ?? 'Titre indisponible';
+            final content = doc['Contenu'] ?? 'Contenu indisponible';
+            final postImagePath = doc['Image'] ?? '';
+            final tags = List<String>.from(doc['Tags'] ?? []);
+            final publishedBy = doc['PublishedBy'] ?? ''; // Nom du champ qui contient l'ID de l'utilisateur
 
             return FutureBuilder<DocumentSnapshot>(
-              future: FirebaseFirestore.instance.collection('Users').doc(
-                  publishedBy).get(),
+              future: FirebaseFirestore.instance.collection('Users').doc(publishedBy).get(),
               builder: (context, userSnapshot) {
                 if (userSnapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                if (!userSnapshot.hasData) {
+                if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
                   return const SizedBox.shrink(); // Gérer le cas où l'utilisateur n'existe pas
                 }
 
                 final userData = userSnapshot.data!;
-                final userImage = userData['Image']; // Assurez-vous que 'Image' est le champ correct dans votre collection 'Users'
+                final userImage = userData['Image'] ?? '';
 
                 return _buildPost(
-                    title, content, postImagePath, userImage, tags);
+                  title.toString(),
+                  content.toString(),
+                  postImagePath.toString(),
+                  userImage.toString(),
+                  tags,
+                );
               },
             );
           },
@@ -347,102 +375,100 @@ class _UserPageState extends State<UserPage> {
     );
   }
 
-  Widget _buildPost(String title, String content, String postImagePath,
-        String userImage, List<String> tags) {
-      return Container(
-        margin: const EdgeInsets.all(10),
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: Colors.grey.withOpacity(0.2),
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: const [
-            BoxShadow(
-              color: ui.Color.fromARGB(255, 87, 87, 87),
-              blurRadius: 5.0,
-              offset: Offset(0, 5),
-            ),
-            BoxShadow(
-              color: ui.Color.fromARGB(255, 87, 87, 87),
-              offset: Offset(0, 0),
-            ),
-            BoxShadow(
-              color: ui.Color.fromARGB(255, 255, 255, 255),
-              offset: Offset(5, 0),
-            ),
-          ],
-        ),
-        child: Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Center(
-                    child: Text(
-                      title,
-                      style: const TextStyle(
-                        color: Colors.black,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    content,
+  Widget _buildPost(String title, String content, String postImagePath, String userImage, List<String> tags) {
+    return Container(
+      margin: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.grey.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: const [
+          BoxShadow(
+            color: ui.Color.fromARGB(255, 87, 87, 87),
+            blurRadius: 5.0,
+            offset: Offset(0, 5),
+          ),
+          BoxShadow(
+            color: ui.Color.fromARGB(255, 87, 87, 87),
+            offset: Offset(0, 0),
+          ),
+          BoxShadow(
+            color: ui.Color.fromARGB(255, 255, 255, 255),
+            offset: Offset(5, 0),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Center(
+                  child: Text(
+                    title,
                     style: const TextStyle(
                       color: Colors.black,
-                      fontSize: 15,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  if (postImagePath.isNotEmpty)
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 0),
-                        child: Image.network(
-                          postImagePath,
-                          width: 500, // Ajustez la largeur de l'image selon vos besoins
-                          height: 200, // Ajustez la hauteur de l'image selon vos besoins
-                        ),
+                ),
+                Text(
+                  content,
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (postImagePath.isNotEmpty)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 0),
+                      child: Image.network(
+                        postImagePath,
+                        width: 500, // Ajustez la largeur de l'image selon vos besoins
+                        height: 200, // Ajustez la hauteur de l'image selon vos besoins
                       ),
                     ),
-                  const SizedBox(height: 8),
-                ],
-              ),
+                  ),
+                const SizedBox(height: 8),
+              ],
             ),
-            Positioned(
-              top: 10,
-              right: 10,
-              child: CircleAvatar(
-                backgroundImage: NetworkImage(userImage),
-                // Assurez-vous que userImage contient l'URL de l'image de l'utilisateur
-                radius: 20,
-              ),
+          ),
+          Positioned(
+            top: 10,
+            right: 10,
+            child: CircleAvatar(
+              backgroundImage: userImage.isNotEmpty ? NetworkImage(userImage) : null,
+              child: userImage.isEmpty ? const Icon(Icons.person) : null,
+              radius: 20,
             ),
-            Positioned(
-              left: 0,
-              bottom: 0,
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                children: tags.map((tag) {
-                  return Text(
-                    '#$tag', // Ajoutez un symbole hashtag devant chaque tag
-                    style: const TextStyle(
-                      fontSize: 10, // Réduisez la taille du texte selon vos besoins
-                    ),
-                  );
-                }).toList(),
-              ),
+          ),
+          Positioned(
+            left: 0,
+            bottom: 0,
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: tags.map((tag) {
+                return Text(
+                  '#$tag', // Ajoutez un symbole hashtag devant chaque tag
+                  style: const TextStyle(
+                    fontSize: 10, // Réduisez la taille du texte selon vos besoins
+                  ),
+                );
+              }).toList(),
             ),
-          ],
-        ),
-      );
-    }
+          ),
+        ],
+      ),
+    );
   }
-
+}
 
 class LiveVideo extends StatelessWidget {
   const LiveVideo({super.key});

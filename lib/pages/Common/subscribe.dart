@@ -4,7 +4,7 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'dart:async';
@@ -608,6 +608,7 @@ class SubscribePage5 extends StatelessWidget {
   }
 }
 
+
 class CongratulationsPage extends StatefulWidget {
   final String nom;
   final String prenom;
@@ -653,6 +654,7 @@ class _CongratulationsPageState extends State<CongratulationsPage> {
             'Matieres': widget.selectedMatieres,
           }, SetOptions(merge: true));
         }
+        _storeUserEmail(widget.email); // Store the user's email
         _redirectUser();
       });
     });
@@ -668,14 +670,12 @@ class _CongratulationsPageState extends State<CongratulationsPage> {
   Future<void> _uploadUserData() async {
     String? imageUrl;
     if (widget.profileImage != null) {
-      // Upload image to Firebase Storage
       final storageRef = FirebaseStorage.instance.ref().child('profile_images/${widget.email}.jpg');
       final uploadTask = storageRef.putFile(widget.profileImage!);
       final taskSnapshot = await uploadTask.whenComplete(() => {});
       imageUrl = await taskSnapshot.ref.getDownloadURL();
     }
 
-    // Save user data to Firestore
     await usersRefs.doc(widget.email).set({
       'Nom': widget.nom,
       'Prénom': widget.prenom,
@@ -687,12 +687,16 @@ class _CongratulationsPageState extends State<CongratulationsPage> {
       'isTuteur': widget.isTuteur,
     });
 
-    // If the user is a tutor, add their subjects
     if (widget.isTuteur) {
       await usersRefs.doc(widget.email).update({
         'Matieres': widget.selectedMatieres,
       });
     }
+  }
+
+  Future<void> _storeUserEmail(String email) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('userEmail', email);
   }
 
   void _redirectUser() {
@@ -758,6 +762,7 @@ class _CongratulationsPageState extends State<CongratulationsPage> {
     );
   }
 }
+
 
 
 

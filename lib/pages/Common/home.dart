@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tutorinsa/pages/User/posts.dart';
 import 'package:tutorinsa/pages/Common/subscribe.dart';
-import 'package:tutorinsa/pages/Tutor/TutorPosts.dart'; // Importer TutorPost
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -30,20 +29,16 @@ class _HomePageState extends State<HomePage> {
     if (querySnapshot.docs.isNotEmpty) {
       // Utilisateur trouvé
       String userId = querySnapshot.docs[0].id;
-      DocumentSnapshot userDoc = querySnapshot.docs[0];
 
-      // Stocker l'ID de l'utilisateur localement
+      // Stocker l'email de l'utilisateur localement
       SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setString('userId', userId);
+      await prefs.setString('userEmail', email);
 
-      // Vérifier si l'utilisateur est un tuteur
-      bool isTuteur = userDoc['isTuteur'] ?? false;
-
-      // Naviguer vers la page appropriée
-      Navigator.pushReplacement(
+      // Naviguer vers UserPage
+      Navigator.push(
         context,
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => isTuteur ? const TutorPostsPage() : const UserPage(),
+          pageBuilder: (context, animation, secondaryAnimation) => const UserPage(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             var begin = const Offset(0, 1);
             var end = Offset.zero;
@@ -98,7 +93,6 @@ class _HomePageState extends State<HomePage> {
                 _buildTitle(),
                 const SizedBox(height: 30),
                 const SizedBox(height: 120),
-                // _buildLogo(),
                 const SizedBox(height: 280),
                 _buildLoginForm(context),
               ],
@@ -123,14 +117,6 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-
-  /*Widget _buildLogo() {
-    return Image.asset(
-      'assets/images/Logo2.png',
-      width: 150,
-      height: 150,
-    );
-  }*/
 
   Widget _buildLoginForm(BuildContext context) {
     return Column(
