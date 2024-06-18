@@ -1,272 +1,223 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'createRdv.dart';
+import 'package:tutorinsa/pages/Common/navigation_bar.dart';
 
 class RDVPage extends StatefulWidget {
-  const RDVPage({Key? key}) : super(key: key);
+  const RDVPage({super.key});
 
   @override
   _RDVPageState createState() => _RDVPageState();
 }
 
 class _RDVPageState extends State<RDVPage> {
-  int _selectedIndex = 3; // Index de l'onglet RDV
+  List<Map<String, dynamic>> _upcomingRDVs = [];
+  List<Map<String, dynamic>> _pastRDVs = [];
+  Map<String, List<Map<String, dynamic>>> _usersBySubjects = {};
+  int _selectedIndex = 3; // Set the default selected index to RDV
 
-  final List<String> matieres = [
-    'Mathématiques',
-    'Physique',
-    'Chimie',
-    'Biologie',
-    'Histoire',
-    'Géographie',
-    'Français',
-    'Anglais',
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _fetchRendezVous();
+    _fetchConnectedUsers();
+  }
 
-  String? selectedMatiere;
-  DateTime? selectedDate;
-  TimeOfDay? selectedTime;
+  Future<void> _fetchRendezVous() async {
+    CollectionReference rendezVousRef =
+        FirebaseFirestore.instance.collection('RendezVous');
+    QuerySnapshot querySnapshot = await rendezVousRef.get();
 
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime(2101),
-    );
-    if (picked != null && picked != selectedDate) {
-      setState(() {
-        selectedDate = picked;
-      });
+    final now = DateTime.now();
+    final upcomingRDVs = <Map<String, dynamic>>[];
+    final pastRDVs = <Map<String, dynamic>>[];
+
+    for (var doc in querySnapshot.docs) {
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+      DateTime rdvDate = (data['date'] as Timestamp).toDate();
+      data['id'] = doc.id; // Add document ID to the data
+
+      // Fetch user who initiated the RDV
+      if (data['initiatedBy'] != null) {
+        DocumentSnapshot userSnapshot = await FirebaseFirestore.instance
+            .collection('Users')
+            .doc(data['initiatedBy'])
+            .get();
+        data['initiatedByUser'] = userSnapshot.data();
+      }
+
+      if (rdvDate.isAfter(now)) {
+        upcomingRDVs.add(data);
+      } else {
+        pastRDVs.add(data);
+      }
     }
+
+    setState(() {
+      _upcomingRDVs = upcomingRDVs;
+      _pastRDVs = pastRDVs;
+    });
   }
 
-  Future<void> _selectTime(BuildContext context) async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.now(),
-    );
-    if (picked != null && picked != selectedTime) {
-      setState(() {
-        selectedTime = picked;
-      });
+  Future<void> _fetchConnectedUsers() async {
+    CollectionReference usersRef = FirebaseFirestore.instance.collection('Users');
+    QuerySnapshot querySnapshot = await usersRef.where('isConnected', isEqualTo: true).get();
+
+    final usersBySubjects = <String, List<Map<String, dynamic>>>{};
+
+    for (var doc in querySnapshot.docs) {
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+      data['id'] = doc.id; // Add document ID to the data
+      List<String> subjects = List<String>.from(data['subjects'] ?? []);
+
+      for (String subject in subjects) {
+        if (!usersBySubjects.containsKey(subject)) {
+          usersBySubjects[subject] = [];
+        }
+        usersBySubjects[subject]!.add(data);
+      }
     }
+
+    setState(() {
+      _usersBySubjects = usersBySubjects;
+    });
   }
 
-  String? get formattedDate {
-    if (selectedDate == null) return null;
-    return "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}";
+  Widget _buildRendezVousList(List<Map<String, dynamic>> rdvs) {
+    if (rdvs.isEmpty) {
+      return const Center(
+        child: Text("Vous n'avez pas de rendez-vous"),
+      );
+    }
+  
+    return ListView.builder(
+      itemCount: rdvs.length,
+      itemBuilder: (context, index) {
+        final rdv = rdvs[index];
+        final rdvDate = (rdv['date'] as Timestamp).toDate();
+        final rdvTime = rdv['heure'] ?? 'No time provided';
+        final initiator = rdv['initiatedByUser'] != null
+            ? '${rdv['initiatedByUser']['Nom']} ${rdv['initiatedByUser']['Prenom']}'
+            : 'Unknown';
+  
+        return ListTile(
+          title: Text(rdv['description'] ?? 'No Description'),
+          subtitle: Text(
+              'Date: ${rdvDate.toLocal()} \nHeure: $rdvTime \nInitiated by: $initiator'),
+        );
+      },
+    );
   }
 
-  String? get formattedTime {
-    if (selectedTime == null) return null;
-    return "${selectedTime!.hour}:${selectedTime!.minute.toString().padLeft(2, '0')}";
+  Widget _buildConnectedUsersList() {
+    if (_usersBySubjects.isEmpty) {
+      return const Center(
+        child: Text("Aucun utilisateur connecté"),
+      );
+    }
+
+    return ListView(
+      children: _usersBySubjects.entries.map((entry) {
+        String subject = entry.key;
+        List<Map<String, dynamic>> users = entry.value;
+        
+        return ExpansionTile(
+          title: Text(subject),
+          children: users.map((user) {
+            return ListTile(
+              leading: CircleAvatar(
+                backgroundImage: NetworkImage(user['profileImageUrl'] ?? 'https://via.placeholder.com/150'),
+              ),
+              title: Text('${user['Nom']} ${user['Prenom']}'),
+              subtitle: Text(user['email']),
+            );
+          }).toList(),
+        );
+      }).toList(),
+    );
   }
 
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
-
-    // Naviguez vers les différentes pages ici selon l'index
-    switch (index) {
-      case 0:
-        // Naviguer vers la page des Posts
-        break;
-      case 1:
-        // Naviguer vers la page des Vidéos
-        break;
-      case 2:
-        // Naviguer vers la page des Messages
-        break;
-      case 3:
-        // Déjà sur la page RDVPage, rien à faire ici
-        break;
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Prendre un rendez-vous'),
+        title: const Text('Mes Rendez-vous'),
         automaticallyImplyLeading: false,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Choisir une matière',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            DropdownButton<String>(
-              value: selectedMatiere,
-              hint: const Text('Sélectionnez une matière'),
-              isExpanded: true,
-              items: matieres.map((String matiere) {
-                return DropdownMenuItem<String>(
-                  value: matiere,
-                  child: Text(matiere),
-                );
-              }).toList(),
-              onChanged: (String? newValue) {
-                setState(() {
-                  selectedMatiere = newValue;
-                });
+        actions: <Widget>[
+          Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.menu_rounded),
+              onPressed: () {
+                Scaffold.of(context).openEndDrawer();
               },
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'Choisir une date',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            TextField(
-              readOnly: true,
-              decoration: InputDecoration(
-                hintText: formattedDate ?? 'Sélectionnez une date',
-              ),
-              onTap: () => _selectDate(context),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Choisir une heure',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            TextField(
-              readOnly: true,
-              decoration: InputDecoration(
-                hintText: formattedTime ?? 'Sélectionnez une heure',
-              ),
-              onTap: () => _selectTime(context),
-            ),
-            const SizedBox(height: 32),
-            Center(
-              child: ElevatedButton(
-                onPressed: selectedMatiere != null && selectedDate != null && selectedTime != null
-                    ? () {
-                        // Action à réaliser lors de la confirmation du rendez-vous
-                        showDialog(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: const Text('Rendez-vous confirmé'),
-                            content: Text(
-                                'Vous avez choisi ${selectedMatiere!} le ${formattedDate!} à ${formattedTime!}.'),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.of(context).pop(),
-                                child: const Text('OK'),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-                    : null,
-                child: const Text('Confirmer le rendez-vous'),
-              ),
-            ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onItemTapped: _onItemTapped,
-      ),
-    );
-  }
-}
-
-class NavigationBar extends StatelessWidget {
-  final int selectedIndex;
-  final Function(int) onItemTapped;
-
-  const NavigationBar({
-    required this.selectedIndex,
-    required this.onItemTapped,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            spreadRadius: 5,
-            blurRadius: 10,
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(30),
-          topRight: Radius.circular(30),
+      endDrawer: Drawer(
+        child: Column(
+          children: <Widget>[
+            Container(
+              height: 70, // Set the height to your preference
+              color: const Color(0xFF5F67EA),
+              child: const Align(
+                alignment: Alignment.center,
+                child: Text(
+                  'Utilisateurs Connectés',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: _buildConnectedUsersList(),
+            ),
+          ],
         ),
-        child: BottomNavigationBar(
-          selectedItemColor: const Color(0xFF5F67EA),
-          selectedFontSize: 12,
-          unselectedFontSize: 12,
-          unselectedItemColor: Colors.grey.withOpacity(0.7),
-          type: BottomNavigationBarType.fixed,
-          items: [
-            const BottomNavigationBarItem(
-              label: 'Posts',
-              icon: Icon(
-                Icons.post_add_rounded,
-                size: 30,
-              ),
+      ),
+      body: DefaultTabController(
+        length: 2,
+        child: Column(
+          children: [
+            const TabBar(
+              tabs: [
+                Tab(text: 'À venir'),
+                Tab(text: 'Passés'),
+              ],
             ),
-            BottomNavigationBarItem(
-              label: "Vidéos",
-              icon: Container(
-                margin: const EdgeInsets.all(5),
-                padding: const EdgeInsets.all(5),
-                decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.play_arrow_rounded,
-                  size: 30,
-                  color: Colors.grey,
-                ),
-              ),
-            ),
-            BottomNavigationBarItem(
-              label: "Messages",
-              icon: Container(
-                margin: const EdgeInsets.all(5),
-                padding: const EdgeInsets.all(5),
-                decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.mail_rounded,
-                  size: 30,
-                  color: Colors.grey,
-                ),
-              ),
-            ),
-            BottomNavigationBarItem(
-              label: "RDV",
-              icon: Container(
-                margin: const EdgeInsets.all(5),
-                padding: const EdgeInsets.all(5),
-                decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.auto_stories_rounded,
-                  size: 30,
-                  color: Colors.grey,
-                ),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  _buildRendezVousList(_upcomingRDVs),
+                  _buildRendezVousList(_pastRDVs),
+                ],
               ),
             ),
           ],
-          currentIndex: selectedIndex,
-          onTap: onItemTapped,
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const createRdv()),
+          );
+        },
+        backgroundColor: const Color(0xFF5F67EA),
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      bottomNavigationBar: NavigationBar2(
+        selectedIndex: _selectedIndex,
+        onItemTapped: _onItemTapped,
       ),
     );
   }

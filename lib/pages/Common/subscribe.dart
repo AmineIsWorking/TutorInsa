@@ -1,3 +1,5 @@
+// ignore_for_file: library_private_types_in_public_api
+
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -229,12 +231,12 @@ class SubscribePage3 extends StatefulWidget {
   final String filiere;
 
   const SubscribePage3({
-    Key? key,
+    super.key,
     required this.nom,
     required this.prenom,
     required this.annee,
     required this.filiere,
-  }) : super(key: key);
+  });
 
   @override
   _SubscribePage3State createState() => _SubscribePage3State();
@@ -249,7 +251,6 @@ class _SubscribePage3State extends State<SubscribePage3> {
   static final RegExp _emailRegExp = RegExp(
     r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$",
   );
-
 
   @override
   Widget build(BuildContext context) {
@@ -325,7 +326,7 @@ class _SubscribePage3State extends State<SubscribePage3> {
                         Navigator.of(context).push(
                           PageTransition(
                             type: PageTransitionType.rightToLeftJoined,
-                            childCurrent: this.widget,
+                            childCurrent: widget,
                             child: SubscribePage4(
                               nom: widget.nom,
                               prenom: widget.prenom,
@@ -383,8 +384,6 @@ class _SubscribePage4State extends State<SubscribePage4> {
       setState(() {
         _image = File(pickedFile.path);
       });
-    } else {
-      print('No image selected.');
     }
   }
 
@@ -505,7 +504,7 @@ class SubscribePage5 extends StatelessWidget {
   final File? profileImage;
 
   const SubscribePage5({
-    Key? key,
+    super.key,
     required this.nom,
     required this.prenom,
     required this.annee,
@@ -513,7 +512,7 @@ class SubscribePage5 extends StatelessWidget {
     required this.email,
     required this.password,
     this.profileImage,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -560,10 +559,10 @@ class SubscribePage5 extends StatelessWidget {
                       ),
                     );
                   },
-                  child: const Text('Tuteur', style: TextStyle(fontSize: 20)),
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(200, 60),
                   ),
+                  child: const Text('Tuteur', style: TextStyle(fontSize: 20)),
                 ),
                 const SizedBox(height: 50),
                 ElevatedButton(
@@ -581,16 +580,16 @@ class SubscribePage5 extends StatelessWidget {
                           password: password,
                           profileImage: profileImage,
                           isTuteur: false,
-                          selectedMatieres: [],
+                          selectedMatieres: const [],
                         ),
                         duration: const Duration(milliseconds: 400),
                       ),
                     );
                   },
-                  child: const Text('Etudiant', style: TextStyle(fontSize: 20)),
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(200, 60),
                   ),
+                  child: const Text('Etudiant', style: TextStyle(fontSize: 20)),
                 ),
               ],
             ),
@@ -613,7 +612,7 @@ class CongratulationsPage extends StatefulWidget {
   final List<String> selectedMatieres; // Sera null si l'utilisateur n'est pas un tuteur
 
   const CongratulationsPage({
-    Key? key,
+    super.key,
     required this.nom,
     required this.prenom,
     required this.annee,
@@ -623,7 +622,7 @@ class CongratulationsPage extends StatefulWidget {
     this.profileImage,
     required this.isTuteur,
     required this.selectedMatieres, // Initialisation de la variable
-  }) : super(key: key);
+  });
 
   @override
   _CongratulationsPageState createState() => _CongratulationsPageState();
@@ -631,18 +630,6 @@ class CongratulationsPage extends StatefulWidget {
 
 class _CongratulationsPageState extends State<CongratulationsPage> {
   late ConfettiController _confettiController;
-
-  void printDetails() {
-    print('Nom: ${widget.nom}');
-    print('Prénom: ${widget.prenom}');
-    print('Année: ${widget.annee}');
-    print('Filière: ${widget.filiere}');
-    print('Email: ${widget.email}');
-    print('Password: ${widget.password}');
-    print('ProfileImage: ${widget.profileImage}');
-    print('isTuteur: ${widget.isTuteur}');
-    print('SelectedMatieres: ${widget.selectedMatieres}');
-  }
 
   @override
   void initState() {
@@ -655,7 +642,6 @@ class _CongratulationsPageState extends State<CongratulationsPage> {
         MaterialPageRoute(builder: (context) => const UserPage()),
       );
     });
-    printDetails();
     super.initState();
   }
 
@@ -728,7 +714,7 @@ class SubscribePage6 extends StatefulWidget {
   final bool isTuteur; // Nouvelle variable booléenne
 
   const SubscribePage6({
-    Key? key,
+    super.key,
     required this.nom,
     required this.prenom,
     required this.annee,
@@ -737,7 +723,7 @@ class SubscribePage6 extends StatefulWidget {
     required this.password,
     required this.profileImage,
     required this.isTuteur, // Initialisation de la variable
-  }) : super(key: key);
+  });
 
   @override
   _SubscribePage6State createState() => _SubscribePage6State();
@@ -833,7 +819,7 @@ class _SubscribePage6State extends State<SubscribePage6> {
                           Navigator.of(context).push(
                             PageTransition(
                               type: PageTransitionType.rightToLeftJoined,
-                              childCurrent: this.widget,
+                              childCurrent: widget,
                               child: CongratulationsPage(
                                 nom: widget.nom,
                                 prenom: widget.prenom,

@@ -1,3 +1,5 @@
+// ignore_for_file: library_private_types_in_public_api
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -45,8 +47,6 @@ class _CreatePostState extends State<CreatePost> {
   }
 
   void _publishPost() {
-    // Ajoutez votre logique de publication ici
-    print("Post publié avec titre : ${_titleController.text}, contenu : ${_contentController.text}, tags : $_tags, image : ${_image?.path}");
   }
 
   Future<void> _pickImage() async {
@@ -148,7 +148,7 @@ class _CreatePostState extends State<CreatePost> {
                   children: [
                     const Icon(Icons.label),
                     const SizedBox(width: 8),
-                    Container(
+                    SizedBox(
                       width: 171.0,
                       child: DropdownButton<String>(
                         value: _selectedSubject,

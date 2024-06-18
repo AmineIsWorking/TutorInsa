@@ -4,8 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:tutorinsa/pages/User/createpost.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'package:animations/animations.dart';
-import 'videos.dart'; // Importez votre fichier videos.dart
-import 'rdv.dart'; // Importez votre fichier rdv.dart
+import 'package:tutorinsa/pages/Common/navigation_bar.dart';
 
 class UserPage extends StatefulWidget {
   const UserPage({super.key});
@@ -42,56 +41,9 @@ class _UserPageState extends State<UserPage> {
   }
 
   void _onItemTapped(int index) {
-    if (index == 1) {
-      Navigator.push(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              const VideosPage(),
-          transitionsBuilder:
-              (context, animation, secondaryAnimation, child) {
-            var begin = const Offset(1.0, 0.0);
-            var end = Offset.zero;
-            var curve = Curves.ease;
-
-            var tween = Tween(begin: begin, end: end)
-                .chain(CurveTween(curve: curve));
-
-            return SlideTransition(
-              position: animation.drive(tween),
-              child: child,
-            );
-          },
-        ),
-      );
-    } else if (index == 3) {
-      // Nouvelle condition pour l'élément "RDV"
-      Navigator.push(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              const RDVPage(),
-          transitionsBuilder:
-              (context, animation, secondaryAnimation, child) {
-            var begin = const Offset(1.0, 0.0);
-            var end = Offset.zero;
-            var curve = Curves.ease;
-
-            var tween = Tween(begin: begin, end: end)
-                .chain(CurveTween(curve: curve));
-
-            return SlideTransition(
-              position: animation.drive(tween),
-              child: child,
-            );
-          },
-        ),
-      );
-    } else {
-      setState(() {
-        _selectedIndex = index;
-      });
-    }
+    setState(() {
+      _selectedIndex = index;
+    });
   }
 
   @override
@@ -103,7 +55,7 @@ class _UserPageState extends State<UserPage> {
           return Scaffold(
             appBar: AppBar(
               backgroundColor: const ui.Color(0xFF5F67EA),
-              automaticallyImplyLeading: true,
+              automaticallyImplyLeading: false,
               title: const Text('Welcome, Amine'),
               titleTextStyle: const TextStyle(
                 color: Colors.white,
@@ -116,7 +68,7 @@ class _UserPageState extends State<UserPage> {
                       image: AssetImage("assets/images/avatar2.png")),
                   tooltip: 'Profil de l\'utilisateur',
                   onPressed: () {
-                    // Ajoutez votre logique ici pour ouvrir le profil de l'utilisateur
+                    // Add your logic here to open the user's profile
                   },
                 ),
               ],
@@ -128,7 +80,7 @@ class _UserPageState extends State<UserPage> {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => VideoPage()),
+                        MaterialPageRoute(builder: (context) => const LiveVideo()),
                       );
                     },
                     child: Stack(
@@ -136,11 +88,9 @@ class _UserPageState extends State<UserPage> {
                         ClipRect(
                           child: Align(
                             alignment: Alignment.center,
-                            heightFactor:
-                                0.7, // Adjust this value to control the crop
+                            heightFactor: 0.7, // Adjust this value to control the crop
                             child: RawImage(
                               image: snapshot.data,
-                              // Utilisez RawImage pour afficher l'image dart:ui.Image
                             ),
                           ),
                         ),
@@ -157,9 +107,7 @@ class _UserPageState extends State<UserPage> {
                                   shape: BoxShape.circle,
                                 ),
                               ),
-                              const SizedBox(
-                                  width:
-                                      5), // Espacement entre le point et le texte
+                              const SizedBox(width: 5),
                               const Text(
                                 'En Live',
                                 style: TextStyle(
@@ -227,7 +175,7 @@ class _UserPageState extends State<UserPage> {
                 ],
               ),
             ),
-            bottomNavigationBar: NavigationBar(
+            bottomNavigationBar: NavigationBar2(
               selectedIndex: _selectedIndex,
               onItemTapped: _onItemTapped,
             ),
@@ -240,8 +188,7 @@ class _UserPageState extends State<UserPage> {
               closedColor: const Color(0xFF5F67EA),
               closedElevation: 6.0,
               transitionDuration: const Duration(milliseconds: 500),
-              closedBuilder:
-                  (BuildContext context, VoidCallback openContainer) {
+              closedBuilder: (BuildContext context, VoidCallback openContainer) {
                 return FloatingActionButton(
                   onPressed: openContainer,
                   backgroundColor: const Color(0xFF5F67EA),
@@ -252,15 +199,15 @@ class _UserPageState extends State<UserPage> {
                 return const CreatePost();
               },
             ),
-            floatingActionButtonLocation:
-                FloatingActionButtonLocation.endFloat,
+            floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
           );
         } else {
           return Container(
-              color: const ui.Color.fromARGB(255, 20, 121, 121),
-              child: const Center(
-                child: CircularProgressIndicator(),
-              ));
+            color: const ui.Color.fromARGB(255, 20, 121, 121),
+            child: const Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
         }
       },
     );
@@ -268,7 +215,16 @@ class _UserPageState extends State<UserPage> {
 
   Widget _buildPost(String title, String content, String imagePath) {
     if (_searchTerm.isNotEmpty && !title.toLowerCase().contains(_searchTerm)) {
-      return Container();
+      return const Center(
+        child: Text(
+          'Aucun post trouvé',
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      );
     }
     return Container(
       margin: const EdgeInsets.all(10),
@@ -329,7 +285,9 @@ class _UserPageState extends State<UserPage> {
   }
 }
 
-class VideoPage extends StatelessWidget {
+class LiveVideo extends StatelessWidget {
+  const LiveVideo({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -350,94 +308,3 @@ class VideoPage extends StatelessWidget {
     );
   }
 }
-
-Widget NavigationBar({
-  required int selectedIndex,
-  required Function(int) onItemTapped,
-}) {
-  return Container(
-    decoration: BoxDecoration(
-      boxShadow: [
-        BoxShadow(
-          color: Colors.grey.withOpacity(0.2),
-          spreadRadius: 5,
-          blurRadius: 10,
-        ),
-      ],
-    ),
-    child: ClipRRect(
-      borderRadius: const BorderRadius.only(
-        topLeft: Radius.circular(30),
-        topRight: Radius.circular(30),
-      ),
-      child: BottomNavigationBar(
-        selectedItemColor: const Color(0xFF5F67EA),
-        selectedFontSize: 12,
-        unselectedFontSize: 12,
-        unselectedItemColor: Colors.grey.withOpacity(0.7),
-        type: BottomNavigationBarType.fixed,
-        items: [
-          const BottomNavigationBarItem(
-            label: 'Posts',
-            icon: Icon(
-              Icons.post_add_rounded,
-              size: 50,
-            ),
-          ),
-          BottomNavigationBarItem(
-            label: "Vidéos",
-            icon: Container(
-              margin: const EdgeInsets.all(5),
-              padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.play_arrow_rounded,
-                size: 30,
-                color: Colors.grey,
-              ),
-            ),
-          ),
-          BottomNavigationBarItem(
-            label: "Messages",
-            icon: Container(
-              margin: const EdgeInsets.all(5),
-              padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.mail_rounded,
-                size: 30,
-                color: Colors.grey,
-              ),
-            ),
-          ),
-          BottomNavigationBarItem(
-            label: "RDV",
-            icon: Container(
-              margin: const EdgeInsets.all(5),
-              padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.auto_stories_rounded,
-                size: 30,
-                color: Colors.grey,
-              ),
-            ),
-          ),
-        ],
-        currentIndex: selectedIndex,
-        onTap: onItemTapped,
-      ),
-    ),
-  );
-}
-
-             
