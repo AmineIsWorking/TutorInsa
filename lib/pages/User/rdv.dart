@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'createRdv.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:tutorinsa/pages/Common/navigation_bar.dart';
 import 'package:tutorinsa/pages/Common/chatpage.dart';
 
@@ -16,7 +15,7 @@ class RDVPage extends StatefulWidget {
 class _RDVPageState extends State<RDVPage> {
   List<Map<String, dynamic>> _upcomingRDVs = [];
   List<Map<String, dynamic>> _pastRDVs = [];
-  Map<String, List<Map<String, dynamic>>> _usersBySubjects = {};
+  Map<String, Map<String, List<Map<String, dynamic>>>> _usersBySubjectsAndYear = {};
   int _selectedIndex = 3; // Set the default selected index to RDV
 
   @override
@@ -74,23 +73,27 @@ class _RDVPageState extends State<RDVPage> {
         .where('connected', isEqualTo: true)
         .get();
 
-    final usersBySubjects = <String, List<Map<String, dynamic>>>{};
+    final usersBySubjectsAndYear = <String, Map<String, List<Map<String, dynamic>>>>{};
 
     for (var doc in querySnapshot.docs) {
       Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
       data['id'] = doc.id; // Add document ID to the data
       List<String> subjects = List<String>.from(data['Matieres'] ?? []);
+      String year = data['Annee'] ?? 'Inconnue';
 
       for (String subject in subjects) {
-        if (!usersBySubjects.containsKey(subject)) {
-          usersBySubjects[subject] = [];
+        if (!usersBySubjectsAndYear.containsKey(subject)) {
+          usersBySubjectsAndYear[subject] = {};
         }
-        usersBySubjects[subject]!.add(data);
+        if (!usersBySubjectsAndYear[subject]!.containsKey(year)) {
+          usersBySubjectsAndYear[subject]![year] = [];
+        }
+        usersBySubjectsAndYear[subject]![year]!.add(data);
       }
     }
 
     setState(() {
-      _usersBySubjects = usersBySubjects;
+      _usersBySubjectsAndYear = usersBySubjectsAndYear;
     });
   }
 
@@ -120,54 +123,69 @@ class _RDVPageState extends State<RDVPage> {
   }
 
   Widget _buildConnectedUsersList() {
-    if (_usersBySubjects.isEmpty) {
+    if (_usersBySubjectsAndYear.isEmpty) {
       return const Center(
         child: Text("Aucun utilisateur connecté"),
       );
     }
-
+  
     return ListView(
       padding: const EdgeInsets.all(10.0),
-      children: _usersBySubjects.entries.map((entry) {
-        String subject = entry.key;
-        List<Map<String, dynamic>> users = entry.value;
-
+      children: _usersBySubjectsAndYear.entries.map((subjectEntry) {
+        String subject = subjectEntry.key;
+        Map<String, List<Map<String, dynamic>>> years = subjectEntry.value;
+  
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              subject,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  subject,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                ...years.entries.map((yearEntry) {
+                  String year = yearEntry.key;
+                  return Text(
+                    '$year',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  );
+                }).toList(),
+              ],
             ),
             const Divider(),
-            ...users.map((user) {
-              return ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 10.0),
-                leading: Stack(
-                  children: [
-                    CircleAvatar(
-                      backgroundImage: NetworkImage(user['Image'] ?? 'https://via.placeholder.com/150'),
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: Colors.green,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
+            ...years.entries.expand((yearEntry) {
+              List<Map<String, dynamic>> users = yearEntry.value;
+              return users.map((user) {
+                return ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10.0),
+                  leading: Stack(
+                    children: [
+                      CircleAvatar(
+                        backgroundImage: NetworkImage(user['Image'] ?? 'https://via.placeholder.com/150'),
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: Colors.green,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                title: Text('${user['Nom']} ${user['Prénom']}'),
-                onTap: () {
-                  _showUserProfileDialog(user);
-                },
-              );
+                    ],
+                  ),
+                  title: Text('${user['Nom']} ${user['Prénom']}'),
+                  onTap: () {
+                    _showUserProfileDialog(user);
+                  },
+                );
+              }).toList();
             }).toList(),
           ],
         );
@@ -183,21 +201,29 @@ class _RDVPageState extends State<RDVPage> {
       builder: (context) {
         return AlertDialog(
           title: Text('${user['Nom']} ${user['Prénom']}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircleAvatar(
-                radius: 50,
-                backgroundImage: NetworkImage(user['Image'] ?? 'https://via.placeholder.com/150'),
-              ),
-              const SizedBox(height: 16),
-              Text(user['Email']),
-              const SizedBox(height: 16),
-              TextField(
-                controller: messageController,
-                decoration: const InputDecoration(hintText: 'Écrire un message'),
-              ),
-            ],
+          content: SingleChildScrollView(
+            child: Column(
+              children: [
+                CircleAvatar(
+                  radius: 50,
+                  backgroundImage: NetworkImage(user['Image'] ?? 'https://via.placeholder.com/150'),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    Text('• ${user['Email']}'),
+                    Text('• ${user['Annee']}'),
+                    Text('• ${user['Filiere']}'),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: messageController,
+                  decoration: const InputDecoration(hintText: 'Écrire un message'),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -217,16 +243,16 @@ class _RDVPageState extends State<RDVPage> {
   }
 
   Future<void> _sendMessage(Map<String, dynamic> user, String message) async {
-    String userId = user['id'];
-    String conversationId = '';
-    User? currentUser = FirebaseAuth.instance.currentUser;
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? _currentUserId = prefs.getString('userId');
 
-    if (currentUser == null) {
-      // Handle the case where the user is not logged in
+    if (_currentUserId == null) {
+      // Handle the case where the user ID is not found
       return;
     }
 
-    String _currentUserId = currentUser.uid;
+    String userId = user['id'];
+    String conversationId = '';
 
     // Check if a conversation already exists
     QuerySnapshot conversationSnapshot = await FirebaseFirestore.instance

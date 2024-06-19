@@ -176,7 +176,7 @@ class _ChatPageState extends State<ChatPage> {
                       message: message['text'],
                       sender: isUser ? 'You' : widget.otherUserName,
                       isUser: isUser,
-                      imageUrl: message['imageUrl'],
+                      imageUrl: (message.data() as Map).containsKey('imageUrl') ? message['imageUrl'] : null,
                       messageId: message.id,
                       conversationId: widget.conversationId,
                     );
