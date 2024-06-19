@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tutorinsa/pages/Common/navigation_bar.dart';
 import 'package:tutorinsa/pages/Common/chatpage.dart';
 
@@ -11,11 +13,116 @@ class ReceptPage extends StatefulWidget {
 
 class _ReceptPageState extends State<ReceptPage> {
   int _selectedIndex = 2;
+  String _currentUserId = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentUserId();
+  }
+
+  Future<void> _loadCurrentUserId() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _currentUserId = prefs.getString('userEmail') ?? '';
+    });
+  }
 
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
+  }
+
+  void _showNewConversationDialog() {
+    TextEditingController emailController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Démarrer une nouvelle conversation'),
+          content: TextField(
+            controller: emailController,
+            decoration: const InputDecoration(hintText: 'Email de l\'utilisateur'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                String email = emailController.text.trim();
+                if (email.isNotEmpty) {
+                  await _startNewConversation(email);
+                  Navigator.of(context).pop();
+                }
+              },
+              child: const Text('Commencer'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _startNewConversation(String email) async {
+    DocumentSnapshot userSnapshot = await FirebaseFirestore.instance.collection('Users').doc(email).get();
+    if (userSnapshot.exists) {
+      String otherUserId = userSnapshot.id;
+
+      // Check if a conversation already exists
+      QuerySnapshot conversationSnapshot = await FirebaseFirestore.instance
+          .collection('conversations')
+          .where('participants', arrayContains: _currentUserId)
+          .get();
+
+      bool conversationExists = false;
+      String conversationId = '';
+
+      for (var doc in conversationSnapshot.docs) {
+        List participants = doc['participants'];
+        if (participants.contains(otherUserId)) {
+          conversationExists = true;
+          conversationId = doc.id;
+          break;
+        }
+      }
+
+      if (!conversationExists) {
+        // Create a new conversation
+        DocumentReference conversationRef = await FirebaseFirestore.instance.collection('conversations').add({
+          'participants': [_currentUserId, otherUserId],
+          'lastMessage': '',
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+        conversationId = conversationRef.id;
+      }
+
+      // Navigate to ChatPage
+      Navigator.push(
+        context,
+        PageRouteBuilder(
+          transitionDuration: const Duration(milliseconds: 100),
+          pageBuilder: (context, animation, secondaryAnimation) => ChatPage(
+            conversationId: conversationId,
+            otherUserName: userSnapshot['Prénom'] ?? 'Utilisateur',
+          ),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            var begin = const Offset(1.0, 0.0);
+            var end = Offset.zero;
+            var tween = Tween(begin: begin, end: end);
+            var offsetAnimation = animation.drive(tween);
+
+            return SlideTransition(
+              position: offsetAnimation,
+              child: child,
+            );
+          },
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Utilisateur introuvable')),
+      );
+    }
   }
 
   @override
@@ -33,6 +140,12 @@ class _ReceptPageState extends State<ReceptPage> {
         backgroundColor: const Color(0xFF5F67EA),
         elevation: 0,
         automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: _showNewConversationDialog,
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -41,7 +154,7 @@ class _ReceptPageState extends State<ReceptPage> {
             child: TextField(
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.search),
-                hintText: 'Search',
+                hintText: 'Rechercher',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20.0),
                 ),
@@ -49,177 +162,103 @@ class _ReceptPageState extends State<ReceptPage> {
             ),
           ),
           Expanded(
-            child: ListView(
-              children: [
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      PageRouteBuilder(
-                        transitionDuration: const Duration(milliseconds: 100), // Ajout de la durée de transition
-                        pageBuilder: (context, animation, secondaryAnimation) => const ChatPage(),
-                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                          var begin = const Offset(1.0, 0.0);
-                          var end = Offset.zero;
-                          var tween = Tween(begin: begin, end: end);
-                          var offsetAnimation = animation.drive(tween);
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('conversations')
+                  .where('participants', arrayContains: _currentUserId)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-                          return SlideTransition(
-                            position: offsetAnimation,
-                            child: child,
-                          );
-                        },
-                      ),
+                final conversations = snapshot.data!.docs;
+
+                return ListView.builder(
+                  itemCount: conversations.length,
+                  itemBuilder: (context, index) {
+                    final conversation = conversations[index];
+                    final participants = List<String>.from(conversation['participants']);
+                    final otherUserId = participants.firstWhere((id) => id != _currentUserId);
+
+                    return FutureBuilder<DocumentSnapshot>(
+                      future: FirebaseFirestore.instance.collection('Users').doc(otherUserId).get(),
+                      builder: (context, userSnapshot) {
+                        if (userSnapshot.connectionState == ConnectionState.waiting) {
+                          return const ListTile(title: Text('Chargement...'));
+                        }
+
+                        if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
+                          return const ListTile(title: Text('Utilisateur introuvable'));
+                        }
+
+                        final userData = userSnapshot.data!;
+                        final otherUserName = userData['Prénom'] ?? 'Utilisateur';
+                        final profileImageUrl = userData['Image'] ?? 'https://via.placeholder.com/150';
+                        final isOnline = (userData.data() as Map<String, dynamic>?)?.containsKey('isOnline') ?? false;
+
+                        return StreamBuilder<QuerySnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('conversations')
+                              .doc(conversation.id)
+                              .collection('messages')
+                              .orderBy('timestamp', descending: true)
+                              .limit(1)
+                              .snapshots(),
+                          builder: (context, messageSnapshot) {
+                            if (!messageSnapshot.hasData) {
+                              return const ListTile(title: Text('Chargement...'));
+                            }
+
+                            final lastMessageDoc = messageSnapshot.data!.docs.isNotEmpty
+                                ? messageSnapshot.data!.docs.first
+                                : null;
+                            final lastMessage = lastMessageDoc != null
+                                ? lastMessageDoc['text'] ?? 'Image'
+                                : 'Aucun message';
+                            final lastMessageTime = lastMessageDoc != null && lastMessageDoc['timestamp'] != null
+                                ? (lastMessageDoc['timestamp'] as Timestamp).toDate().toString()
+                                : 'Inconnu';
+
+                            return GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  PageRouteBuilder(
+                                    transitionDuration: const Duration(milliseconds: 100),
+                                    pageBuilder: (context, animation, secondaryAnimation) => ChatPage(
+                                      conversationId: conversation.id,
+                                      otherUserName: otherUserName,
+                                    ),
+                                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                      var begin = const Offset(1.0, 0.0);
+                                      var end = Offset.zero;
+                                      var tween = Tween(begin: begin, end: end);
+                                      var offsetAnimation = animation.drive(tween);
+
+                                      return SlideTransition(
+                                        position: offsetAnimation,
+                                        child: child,
+                                      );
+                                    },
+                                  ),
+                                );
+                              },
+                              child: ChatItem(
+                                name: otherUserName,
+                                message: lastMessage,
+                                time: lastMessageTime,
+                                isOnline: isOnline,
+                                profileImageUrl: profileImageUrl,
+                              ),
+                            );
+                          },
+                        );
+                      },
                     );
                   },
-                  child: const ChatItem(
-                    name: 'User',
-                    message: 'test',
-                    time: '12:31 PM',
-                    isOnline: true,
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      PageRouteBuilder(
-                        transitionDuration: const Duration(milliseconds: 100), // Ajout de la durée de transition
-                        pageBuilder: (context, animation, secondaryAnimation) => const ChatPage(),
-                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                          var begin = const Offset(1.0, 0.0);
-                          var end = Offset.zero;
-                          var tween = Tween(begin: begin, end: end);
-                          var offsetAnimation = animation.drive(tween);
-
-                          return SlideTransition(
-                            position: offsetAnimation,
-                            child: child,
-                          );
-                        },
-                      ),
-                    );
-                  },
-                  child: const ChatItem(
-                    name: 'Admin',
-                    message: '👋',
-                    time: 'Sun',
-                    isOnline: false,
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      PageRouteBuilder(
-                        transitionDuration: const Duration(milliseconds: 100), // Ajout de la durée de transition
-                        pageBuilder: (context, animation, secondaryAnimation) => const ChatPage(),
-                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                          var begin = const Offset(1.0, 0.0);
-                          var end = Offset.zero;
-                          var tween = Tween(begin: begin, end: end);
-                          var offsetAnimation = animation.drive(tween);
-
-                          return SlideTransition(
-                            position: offsetAnimation,
-                            child: child,
-                          );
-                        },
-                      ),
-                    );
-                  },
-                  child: const ChatItem(
-                    name: 'Mohammad',
-                    message: '📷',
-                    time: 'Sat',
-                    isOnline: false,
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      PageRouteBuilder(
-                        transitionDuration: const Duration(milliseconds: 100), // Ajout de la durée de transition
-                        pageBuilder: (context, animation, secondaryAnimation) => const ChatPage(),
-                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                          var begin = const Offset(1.0, 0.0);
-                          var end = Offset.zero;
-                          var tween = Tween(begin: begin, end: end);
-                          var offsetAnimation = animation.drive(tween);
-
-                          return SlideTransition(
-                            position: offsetAnimation,
-                            child: child,
-                          );
-                        },
-                      ),
-                    );
-                  },
-                  child: const ChatItem(
-                    name: 'Amine',
-                    message: 'hi',
-                    time: 'Fri',
-                    isOnline: false,
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      PageRouteBuilder(
-                        transitionDuration: const Duration(milliseconds: 100), // Ajout de la durée de transition
-                        pageBuilder: (context, animation, secondaryAnimation) => const ChatPage(),
-                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                          var begin = const Offset(1.0, 0.0);
-                          var end = Offset.zero;
-                          var tween = Tween(begin: begin, end: end);
-                          var offsetAnimation = animation.drive(tween);
-
-                          return SlideTransition(
-                            position: offsetAnimation,
-                            child: child,
-                          );
-                        },
-                      ),
-                    );
-                  },
-                  child: const ChatItem(
-                    name: 'Anissa',
-                    message: 'hi',
-                    time: 'Tue',
-                    isOnline: false,
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      PageRouteBuilder(
-                        transitionDuration: const Duration(milliseconds: 100), // Ajout de la durée de transition
-                        pageBuilder: (context, animation, secondaryAnimation) => const ChatPage(),
-                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                          var begin = const Offset(1.0, 0.0);
-                          var end = Offset.zero;
-                          var tween = Tween(begin: begin, end: end);
-                          var offsetAnimation = animation.drive(tween);
-
-                          return SlideTransition(
-                            position: offsetAnimation,
-                            child: child,
-                          );
-                        },
-                      ),
-                    );
-                  },
-                  child: const ChatItem(
-                    name: 'sulxl',
-                    message: 'Hi',
-                    time: 'Mon',
-                    isOnline: false,
-                  ),
-                ),
-              ],
+                );
+              },
             ),
           ),
         ],
@@ -237,6 +276,7 @@ class ChatItem extends StatelessWidget {
   final String message;
   final String time;
   final bool isOnline;
+  final String profileImageUrl;
 
   const ChatItem({
     super.key,
@@ -244,6 +284,7 @@ class ChatItem extends StatelessWidget {
     required this.message,
     required this.time,
     this.isOnline = false,
+    required this.profileImageUrl,
   });
 
   @override
@@ -251,8 +292,8 @@ class ChatItem extends StatelessWidget {
     return ListTile(
       leading: Stack(
         children: [
-          const CircleAvatar(
-            backgroundImage: AssetImage('assets/images/nopicture.png'),
+          CircleAvatar(
+            backgroundImage: NetworkImage(profileImageUrl),
             radius: 25,
           ),
           if (isOnline)

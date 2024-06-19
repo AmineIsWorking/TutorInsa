@@ -27,12 +27,14 @@ class _HomePageState extends State<HomePage> {
         .get();
 
     if (querySnapshot.docs.isNotEmpty) {
-      // Utilisateur trouvé
+      // Mettre à jour la variable 'connected' à true
+      DocumentSnapshot userDoc = querySnapshot.docs.first;
+      await userDoc.reference.update({'connected': true});
+  
       String userId = querySnapshot.docs[0].id;
-
-      // Stocker l'email de l'utilisateur localement
       SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setString('userEmail', email);
+      await prefs.setString('userId', userId);
+
 
       // Naviguer vers UserPage
       Navigator.push(

@@ -1,9 +1,20 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'messages.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'messages.dart'; // Ensure the path is correct
 
 class ChatPage extends StatefulWidget {
-  const ChatPage({super.key});
+  final String conversationId;
+  final String otherUserName;
+
+  const ChatPage({
+    super.key,
+    required this.conversationId,
+    required this.otherUserName,
+  });
 
   @override
   _ChatPageState createState() => _ChatPageState();
@@ -11,7 +22,23 @@ class ChatPage extends StatefulWidget {
 
 class _ChatPageState extends State<ChatPage> {
   final TextEditingController _controller = TextEditingController();
-  final List<Map<String, dynamic>> _messages = [];
+  final ImagePicker _picker = ImagePicker();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
+  String? _currentUserId;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserId();
+  }
+
+  Future<void> _loadUserId() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _currentUserId = prefs.getString('userEmail'); // Assuming email is used as userId
+    });
+  }
 
   void _showPickImageDialog() {
     showDialog(
@@ -44,31 +71,46 @@ class _ChatPageState extends State<ChatPage> {
       },
     );
   }
-  
-  void _pickImageFromGallery() async {
-    final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
+
+  Future<void> _pickImageFromGallery() async {
+    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
-      // Send the image as a message
-      _sendMessage(pickedFile.path);
-    }
-  }
-  
-  void _pickImageFromCamera() async {
-    final pickedFile = await ImagePicker().pickImage(source: ImageSource.camera);
-    if (pickedFile != null) {
-      // Send the image as a message
-      _sendMessage(pickedFile.path);
+      String imageUrl = await _uploadImage(pickedFile.path);
+      _sendMessage(imageUrl, true);
     }
   }
 
-  void _sendMessage(String text) {
-    if (text.trim().isEmpty) {
+  Future<void> _pickImageFromCamera() async {
+    final pickedFile = await _picker.pickImage(source: ImageSource.camera);
+    if (pickedFile != null) {
+      String imageUrl = await _uploadImage(pickedFile.path);
+      _sendMessage(imageUrl, true);
+    }
+  }
+
+  Future<String> _uploadImage(String path) async {
+    File file = File(path);
+    String fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
+    UploadTask uploadTask = _storage.ref('chat_images/$fileName').putFile(file);
+    TaskSnapshot taskSnapshot = await uploadTask;
+    return await taskSnapshot.ref.getDownloadURL();
+  }
+
+  void _sendMessage(String content, bool isImage) {
+    if (content.trim().isEmpty || _currentUserId == null) {
       return;
     }
 
-    setState(() {
-      _messages.add({"text": text, "sender": "Amine", "isUser": true});
-      _messages.add({"text": "Réponse automatique", "sender": "Bot", "isUser": false});
+    _firestore.collection('conversations').doc(widget.conversationId).collection('messages').add({
+      'text': isImage ? null : content,
+      'imageUrl': isImage ? content : null,
+      'senderId': _currentUserId,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+
+    _firestore.collection('conversations').doc(widget.conversationId).update({
+      'lastMessage': isImage ? 'Photo' : content,
+      'timestamp': FieldValue.serverTimestamp(),
     });
 
     _controller.clear();
@@ -78,7 +120,7 @@ class _ChatPageState extends State<ChatPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Chatter'),
+        title: Text(widget.otherUserName),
         titleTextStyle: const TextStyle(
           color: Color.fromARGB(255, 255, 255, 255),
           fontWeight: FontWeight.bold,
@@ -90,15 +132,36 @@ class _ChatPageState extends State<ChatPage> {
       body: Column(
         children: [
           Expanded(
-            child: ListView.builder(
-              reverse: true,
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final message = _messages[_messages.length - 1 - index];
-                return ChatBubble(
-                  message: message["text"],
-                  sender: message["sender"],
-                  isUser: message["isUser"],
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _firestore
+                  .collection('conversations')
+                  .doc(widget.conversationId)
+                  .collection('messages')
+                  .orderBy('timestamp', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final messages = snapshot.data!.docs;
+
+                return ListView.builder(
+                  reverse: true,
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    final message = messages[index];
+                    final isUser = message['senderId'] == _currentUserId;
+
+                    return ChatBubble(
+                      message: message['text'],
+                      sender: isUser ? 'You' : widget.otherUserName,
+                      isUser: isUser,
+                      imageUrl: message['imageUrl'],
+                      messageId: message.id,
+                      conversationId: widget.conversationId,
+                    );
+                  },
                 );
               },
             ),
@@ -125,7 +188,7 @@ class _ChatPageState extends State<ChatPage> {
                 ),
                 const SizedBox(width: 8.0),
                 FloatingActionButton(
-                  onPressed: () => _sendMessage(_controller.text),
+                  onPressed: () => _sendMessage(_controller.text, false),
                   child: const Icon(Icons.send),
                 ),
               ],
@@ -136,3 +199,4 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 }
+

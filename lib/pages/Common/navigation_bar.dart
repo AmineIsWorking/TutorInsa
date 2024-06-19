@@ -6,7 +6,7 @@ import 'package:tutorinsa/pages/User/rdv.dart';
 import 'package:tutorinsa/pages/User/recept.dart';
 import 'package:tutorinsa/pages/User/videos.dart';
 
-class NavigationBar2 extends StatelessWidget {
+class NavigationBar2 extends StatefulWidget {
   final int selectedIndex;
   final Function(int) onItemTapped;
 
@@ -15,6 +15,58 @@ class NavigationBar2 extends StatelessWidget {
     required this.selectedIndex,
     required this.onItemTapped,
   });
+
+  @override
+  _NavigationBar2State createState() => _NavigationBar2State();
+}
+
+class _NavigationBar2State extends State<NavigationBar2> {
+  bool _mounted = true;
+
+  @override
+  void dispose() {
+    _mounted = false;
+    super.dispose();
+  }
+
+  void _onTabChange(int index) {
+    if (index == widget.selectedIndex) {
+      return;
+    }
+
+    Widget nextPage;
+    switch (index) {
+      case 0:
+        nextPage = const UserPage();
+        break;
+      case 1:
+        nextPage = const VideosPage();
+        break;
+      case 2:
+        nextPage = const ReceptPage();
+        break;
+      case 3:
+        nextPage = const RDVPage();
+        break;
+      default:
+        nextPage = const UserPage();
+    }
+
+    Navigator.push(
+      context,
+      PageTransition(
+        type: PageTransitionType.fade,
+        child: nextPage,
+        duration: const Duration(milliseconds: 300),
+      ),
+    ).then((_) {
+      if (_mounted) {
+        setState(() {
+          widget.onItemTapped(index);
+        });
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -66,40 +118,8 @@ class NavigationBar2 extends StatelessWidget {
                     text: 'RDV',
                   ),
                 ],
-                selectedIndex: selectedIndex,
-                onTabChange: (index) {
-                  if (index == selectedIndex) {
-                    return;
-                  }
-
-                  Widget nextPage;
-                  switch (index) {
-                    case 0:
-                      nextPage = const UserPage();
-                      break;
-                    case 1:
-                      nextPage = const VideosPage();
-                      break;
-                    case 2:
-                      nextPage = const ReceptPage();
-                      break;
-                    case 3:
-                      nextPage = const RDVPage();
-                      break;
-                    default:
-                      nextPage = const UserPage();
-                  }
-
-                  Navigator.push(
-                    context,
-                    PageTransition(
-                      type: PageTransitionType.fade,
-                      child: nextPage,
-                      duration: const Duration(milliseconds: 300),
-                    ),
-                  );
-                  onItemTapped(index);
-                },
+                selectedIndex: widget.selectedIndex,
+                onTabChange: _onTabChange,
               ),
             ),
           ),

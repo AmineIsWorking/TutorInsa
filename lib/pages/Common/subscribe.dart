@@ -360,7 +360,6 @@ class _SubscribePage3State extends State<SubscribePage3> {
   }
 }
 
-
 class SubscribePage4 extends StatefulWidget {
   final String nom;
   final String prenom;
@@ -369,14 +368,15 @@ class SubscribePage4 extends StatefulWidget {
   final String email;
   final String password;
 
-  const SubscribePage4(
-      {super.key,
-      required this.nom,
-      required this.prenom,
-      required this.annee,
-      required this.filiere,
-      required this.email,
-      required this.password});
+  const SubscribePage4({
+    super.key,
+    required this.nom,
+    required this.prenom,
+    required this.annee,
+    required this.filiere,
+    required this.email,
+    required this.password,
+  });
 
   @override
   _SubscribePage4State createState() => _SubscribePage4State();
@@ -421,14 +421,16 @@ class _SubscribePage4State extends State<SubscribePage4> {
                 ),
                 const SizedBox(height: 50),
                 _image == null
-                    ? const Icon(Icons.account_circle,
-                        size: 100, color: Colors.white)
+                    ? const Icon(Icons.account_circle, size: 100, color: Colors.white)
                     : SizedBox(
                         height: 200,
                         width: 200,
-                        child: Image.file(
-                          _image!,
-                          fit: BoxFit.cover,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(100),
+                          child: Image.file(
+                            _image!,
+                            fit: BoxFit.cover,
+                          ),
                         ),
                       ),
                 const SizedBox(height: 50),
@@ -440,8 +442,7 @@ class _SubscribePage4State extends State<SubscribePage4> {
                         scale: 1.3,
                         child: const CircleAvatar(
                           backgroundColor: Colors.white,
-                          child: Icon(Icons.add_a_photo_rounded,
-                              color: Color.fromARGB(255, 59, 70, 150)),
+                          child: Icon(Icons.add_a_photo_rounded, color: Color.fromARGB(255, 59, 70, 150)),
                         ),
                       ),
                       onPressed: () {
@@ -482,8 +483,7 @@ class _SubscribePage4State extends State<SubscribePage4> {
                         scale: 1.3,
                         child: const CircleAvatar(
                           backgroundColor: Colors.white,
-                          child: Icon(Icons.image_rounded,
-                              color: Color.fromARGB(255, 59, 70, 150)),
+                          child: Icon(Icons.image_rounded, color: Color.fromARGB(255, 59, 70, 150)),
                         ),
                       ),
                       onPressed: () {
@@ -608,7 +608,6 @@ class SubscribePage5 extends StatelessWidget {
   }
 }
 
-
 class CongratulationsPage extends StatefulWidget {
   final String nom;
   final String prenom;
@@ -685,6 +684,7 @@ class _CongratulationsPageState extends State<CongratulationsPage> {
       'Password': widget.password,
       'Image': imageUrl,
       'isTuteur': widget.isTuteur,
+      'connected': true, // Add the connected field
     });
 
     if (widget.isTuteur) {
@@ -762,9 +762,6 @@ class _CongratulationsPageState extends State<CongratulationsPage> {
     );
   }
 }
-
-
-
 
 class SubscribePage6 extends StatefulWidget {
   final String nom;
@@ -856,11 +853,9 @@ class _SubscribePage6State extends State<SubscribePage6> {
                               setState(() {
                                 isSelected[index] = selected;
                                 if (selected) {
-                                  selectedMatieres.add(
-                                      matiere); // Add subject to selected list
+                                  selectedMatieres.add(matiere); // Add subject to selected list
                                 } else {
-                                  selectedMatieres.remove(
-                                      matiere); // Remove subject from selected list
+                                  selectedMatieres.remove(matiere); // Remove subject from selected list
                                 }
                               });
                             },
@@ -892,8 +887,7 @@ class _SubscribePage6State extends State<SubscribePage6> {
                                 password: widget.password,
                                 profileImage: widget.profileImage,
                                 isTuteur: widget.isTuteur,
-                                selectedMatieres:
-                                    selectedMatieres, // Pass selected subjects to CongratulationsPage
+                                selectedMatieres: selectedMatieres, // Pass selected subjects to CongratulationsPage
                               ),
                               duration: const Duration(milliseconds: 400),
                             ),

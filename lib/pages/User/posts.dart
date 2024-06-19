@@ -45,10 +45,10 @@ class _UserPageState extends State<UserPage> {
 
   Future<void> _loadUserData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? email = prefs.getString('userEmail');
-    if (email != null) {
+    String? userId = prefs.getString('userId');
+    if (userId != null) {
       DocumentSnapshot userSnapshot =
-          await FirebaseFirestore.instance.collection('Users').doc(email).get();
+          await FirebaseFirestore.instance.collection('Users').doc(userId).get();
       if (userSnapshot.exists) {
         setState(() {
           _userName = userSnapshot['Prénom'];

@@ -2,7 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'createRdv.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:tutorinsa/pages/Common/navigation_bar.dart';
+import 'package:tutorinsa/pages/Common/chatpage.dart';
 
 class RDVPage extends StatefulWidget {
   const RDVPage({super.key});
@@ -44,7 +46,7 @@ class _RDVPageState extends State<RDVPage> {
     for (var doc in querySnapshot.docs) {
       Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
       DateTime rdvDate = DateTime.parse(data['Date']);
-      data['id'] = doc.id;  // Add document ID to the data
+      data['id'] = doc.id; // Add document ID to the data
 
       // Fetch user who initiated the RDV
       if (data['InitiatedBy'] != null) {
@@ -67,14 +69,17 @@ class _RDVPageState extends State<RDVPage> {
 
   Future<void> _fetchConnectedUsers() async {
     CollectionReference usersRef = FirebaseFirestore.instance.collection('Users');
-    QuerySnapshot querySnapshot = await usersRef.where('isConnected', isEqualTo: true).get();
+    QuerySnapshot querySnapshot = await usersRef
+        .where('isTuteur', isEqualTo: true)
+        .where('connected', isEqualTo: true)
+        .get();
 
     final usersBySubjects = <String, List<Map<String, dynamic>>>{};
 
     for (var doc in querySnapshot.docs) {
       Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
       data['id'] = doc.id; // Add document ID to the data
-      List<String> subjects = List<String>.from(data['subjects'] ?? []);
+      List<String> subjects = List<String>.from(data['Matieres'] ?? []);
 
       for (String subject in subjects) {
         if (!usersBySubjects.containsKey(subject)) {
@@ -95,7 +100,7 @@ class _RDVPageState extends State<RDVPage> {
         child: Text("Vous n'avez pas de rendez-vous"),
       );
     }
-  
+
     return ListView.builder(
       itemCount: rdvs.length,
       itemBuilder: (context, index) {
@@ -104,8 +109,8 @@ class _RDVPageState extends State<RDVPage> {
         final rdvTime = rdv['Time'];
         final initiator = rdv['initiatedByUser'] != null
             ? '${rdv['initiatedByUser']['Nom']} ${rdv['initiatedByUser']['Prénom']}'
-            : 'Unknown';
-  
+            : 'Inconnu';
+
         return ListTile(
           title: Text(rdv['Matiere'] ?? 'No Description'),
           subtitle: Text('Date: ${rdvDate.toLocal()} \nHeure: $rdvTime \nInitiated by: $initiator'),
@@ -122,23 +127,165 @@ class _RDVPageState extends State<RDVPage> {
     }
 
     return ListView(
+      padding: const EdgeInsets.all(10.0),
       children: _usersBySubjects.entries.map((entry) {
         String subject = entry.key;
         List<Map<String, dynamic>> users = entry.value;
-        
-        return ExpansionTile(
-          title: Text(subject),
-          children: users.map((user) {
-            return ListTile(
-              leading: CircleAvatar(
-                backgroundImage: NetworkImage(user['profileImageUrl'] ?? 'https://via.placeholder.com/150'),
-              ),
-              title: Text('${user['Nom']} ${user['Prénom']}'),
-              subtitle: Text(user['email']),
-            );
-          }).toList(),
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              subject,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const Divider(),
+            ...users.map((user) {
+              return ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10.0),
+                leading: Stack(
+                  children: [
+                    CircleAvatar(
+                      backgroundImage: NetworkImage(user['Image'] ?? 'https://via.placeholder.com/150'),
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: Colors.green,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                title: Text('${user['Nom']} ${user['Prénom']}'),
+                onTap: () {
+                  _showUserProfileDialog(user);
+                },
+              );
+            }).toList(),
+          ],
         );
       }).toList(),
+    );
+  }
+
+  void _showUserProfileDialog(Map<String, dynamic> user) {
+    TextEditingController messageController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('${user['Nom']} ${user['Prénom']}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircleAvatar(
+                radius: 50,
+                backgroundImage: NetworkImage(user['Image'] ?? 'https://via.placeholder.com/150'),
+              ),
+              const SizedBox(height: 16),
+              Text(user['Email']),
+              const SizedBox(height: 16),
+              TextField(
+                controller: messageController,
+                decoration: const InputDecoration(hintText: 'Écrire un message'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                String message = messageController.text.trim();
+                if (message.isNotEmpty) {
+                  await _sendMessage(user, message);
+                }
+              },
+              child: const Text('Envoyer'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _sendMessage(Map<String, dynamic> user, String message) async {
+    String userId = user['id'];
+    String conversationId = '';
+    User? currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) {
+      // Handle the case where the user is not logged in
+      return;
+    }
+
+    String _currentUserId = currentUser.uid;
+
+    // Check if a conversation already exists
+    QuerySnapshot conversationSnapshot = await FirebaseFirestore.instance
+        .collection('conversations')
+        .where('participants', arrayContains: _currentUserId)
+        .get();
+
+    for (var doc in conversationSnapshot.docs) {
+      List participants = doc['participants'];
+      if (participants.contains(userId)) {
+        conversationId = doc.id;
+        break;
+      }
+    }
+
+    if (conversationId.isEmpty) {
+      // Create a new conversation
+      DocumentReference conversationRef = await FirebaseFirestore.instance.collection('conversations').add({
+        'participants': [_currentUserId, userId],
+        'lastMessage': message,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+      conversationId = conversationRef.id;
+    } else {
+      // Update the existing conversation with the new message
+      await FirebaseFirestore.instance.collection('conversations').doc(conversationId).update({
+        'lastMessage': message,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+    }
+
+    // Add the message to the messages subcollection
+    await FirebaseFirestore.instance.collection('conversations').doc(conversationId).collection('messages').add({
+      'text': message,
+      'senderId': _currentUserId,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+
+    // Navigate to ChatPage
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 100),
+        pageBuilder: (context, animation, secondaryAnimation) => ChatPage(
+          conversationId: conversationId,
+          otherUserName: user['Prénom'],
+        ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          var begin = const Offset(1.0, 0.0);
+          var end = Offset.zero;
+          var tween = Tween(begin: begin, end: end);
+          var offsetAnimation = animation.drive(tween);
+
+          return SlideTransition(
+            position: offsetAnimation,
+            child: child,
+          );
+        },
+      ),
     );
   }
 
@@ -236,3 +383,4 @@ class _RDVPageState extends State<RDVPage> {
     );
   }
 }
+
