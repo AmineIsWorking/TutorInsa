@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tutorinsa/pages/User/createpost.dart';
 import 'package:tutorinsa/pages/Common/profilepage.dart';
+import 'package:tutorinsa/pages/User/mesposts.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'package:animations/animations.dart';
 import 'package:tutorinsa/pages/Common/navigation_bar.dart';
@@ -106,6 +107,18 @@ class _UserPageState extends State<UserPage> {
               ),
               actions: <Widget>[
                 IconButton(
+                      icon: const Icon(Icons.inbox, color: Colors.white),
+                      tooltip: 'Mes Posts',
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const MesPosts(),
+                          ),
+                        );
+                      },
+                    ),
+                IconButton(
                   icon: _userImage != null
                       ? CircleAvatar(
                           backgroundImage: NetworkImage(_userImage!),
@@ -147,27 +160,38 @@ class _UserPageState extends State<UserPage> {
                           ),
                         ),
                         Positioned(
-                          bottom: 0,
+                          bottom: 5,
                           left: 10,
-                          child: Row(
-                            children: <Widget>[
-                              Container(
-                                width: 10,
-                                height: 10,
-                                decoration: const BoxDecoration(
-                                  color: Colors.red,
-                                  shape: BoxShape.circle,
-                                ),
+                          child: Container(
+                            padding: const EdgeInsets.all(5), // Ajoutez du padding pour donner de l'espace autour du texte et du bouton
+                            decoration: BoxDecoration(
+                              color: Colors.white, // Définissez la couleur de la boîte en blanc
+                              borderRadius: BorderRadius.circular(20), // Ajoutez un arrondi à la boîte
+                              border: Border.all(
+                                color: ui.Color.fromARGB(255, 0, 0, 0), // Définissez la couleur de la bordure en violet
+                                width: 2, // Définissez la largeur de la bordure
                               ),
-                              const SizedBox(width: 5),
-                              const Text(
-                                'En Live',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15,
+                            ),
+                            child: Row(
+                              children: <Widget>[
+                                Container(
+                                  width: 10,
+                                  height: 10,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 5),
+                                const Text(
+                                  'En Live',
+                                  style: TextStyle(
+                                    color: Colors.black, // Changez la couleur du texte en noir pour qu'il soit visible sur le fond blanc
+                                    fontSize: 15,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
@@ -336,7 +360,7 @@ class _UserPageState extends State<UserPage> {
 
         return ListView.builder(
           shrinkWrap: true,
-          physics: NeverScrollableScrollPhysics(),
+          physics: const NeverScrollableScrollPhysics(),
           itemCount: documents.length,
           itemBuilder: (context, index) {
             final doc = documents[index];

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tutorinsa/pages/Tutor/TutorPosts.dart';
 import 'package:tutorinsa/pages/User/posts.dart';
 import 'package:tutorinsa/pages/Common/subscribe.dart';
 
@@ -35,12 +36,14 @@ class _HomePageState extends State<HomePage> {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setString('userId', userId);
 
+      // Vérifier si l'utilisateur est un tuteur
+      bool isTuteur = userDoc['isTuteur'] ?? false;
 
       // Naviguer vers UserPage
       Navigator.push(
         context,
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const UserPage(),
+          pageBuilder: (context, animation, secondaryAnimation) => isTuteur ? const TutorPostsPage() : const UserPage(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             var begin = const Offset(0, 1);
             var end = Offset.zero;

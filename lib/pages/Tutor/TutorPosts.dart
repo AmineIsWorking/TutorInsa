@@ -40,6 +40,9 @@ class _TutorPageState extends State<TutorPostsPage> {
           fontSize: 20,
           fontWeight: FontWeight.bold,
         ),
+        iconTheme: const IconThemeData(
+          color: Color.fromARGB(255, 255, 255, 255),
+        ),
         actions: <Widget>[
           IconButton(
             icon: const Image(image: AssetImage("assets/images/avatar2.png")),
