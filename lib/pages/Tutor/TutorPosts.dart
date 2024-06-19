@@ -33,15 +33,12 @@ class _TutorPageState extends State<TutorPostsPage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const ui.Color(0xFF5F67EA),
-        automaticallyImplyLeading: true,
+        automaticallyImplyLeading: false,
         title: const Text('Welcome, Amine'),
         titleTextStyle: const TextStyle(
           color: Colors.white,
           fontSize: 20,
           fontWeight: FontWeight.bold,
-        ),
-        iconTheme: const IconThemeData(
-          color: Color.fromARGB(255, 255, 255, 255),
         ),
         actions: <Widget>[
           IconButton(

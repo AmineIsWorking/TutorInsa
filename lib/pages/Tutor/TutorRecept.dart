@@ -13,7 +13,8 @@ class TutorReceptPage extends StatefulWidget {
 
 class _TutorReceptPageState extends State<TutorReceptPage> {
   int _selectedIndex = 2;
-  String _currentTutorId = '';
+  String? _currentTutorId;
+  String? _currentTutorEmail;
 
   @override
   void initState() {
@@ -23,10 +24,13 @@ class _TutorReceptPageState extends State<TutorReceptPage> {
 
   Future<void> _loadCurrentTutorId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _currentTutorId = prefs.getString('userEmail') ?? '';
-    });
-  }
+  setState(() {
+    _currentTutorId = prefs.getString('userId'); // Use userId instead of email
+    _currentTutorEmail = prefs.getString('userEmail'); // Get user email
+  });
+  print("Current Tutor ID: $_currentTutorId");
+  print("Current Tutor Email: $_currentTutorEmail");
+}
 
   void _onItemTapped(int index) {
     setState(() {
@@ -64,8 +68,14 @@ class _TutorReceptPageState extends State<TutorReceptPage> {
   }
 
   Future<void> _startNewConversation(String email) async {
-    DocumentSnapshot userSnapshot = await FirebaseFirestore.instance.collection('Users').doc(email).get();
-    if (userSnapshot.exists) {
+    QuerySnapshot userQuerySnapshot = await FirebaseFirestore.instance
+        .collection('Users')
+        .where('Email', isEqualTo: email)
+        .limit(1)
+        .get();
+
+    if (userQuerySnapshot.docs.isNotEmpty) {
+      DocumentSnapshot userSnapshot = userQuerySnapshot.docs.first;
       String otherUserId = userSnapshot.id;
 
       // Check if a conversation already exists
@@ -194,6 +204,7 @@ class _TutorReceptPageState extends State<TutorReceptPage> {
 
                         final userData = userSnapshot.data!;
                         final otherUserName = userData['Prénom'] ?? 'Utilisateur';
+                        final profileImageUrl = userData['Image'] ?? 'https://via.placeholder.com/150';
                         final isOnline = (userData.data() as Map<String, dynamic>?)?.containsKey('isOnline') ?? false;
 
                         return StreamBuilder<QuerySnapshot>(
@@ -218,6 +229,11 @@ class _TutorReceptPageState extends State<TutorReceptPage> {
                             final lastMessageTime = lastMessageDoc != null && lastMessageDoc['timestamp'] != null
                                 ? (lastMessageDoc['timestamp'] as Timestamp).toDate().toString()
                                 : 'Inconnu';
+                            final isRead = lastMessageDoc != null
+                                ? (lastMessageDoc.data() as Map<String, dynamic>).containsKey('isRead')
+                                    ? lastMessageDoc['isRead']
+                                    : false
+                                : false;
 
                             return GestureDetector(
                               onTap: () {
@@ -248,6 +264,8 @@ class _TutorReceptPageState extends State<TutorReceptPage> {
                                 message: lastMessage,
                                 time: lastMessageTime,
                                 isOnline: isOnline,
+                                profileImageUrl: profileImageUrl,
+                                isRead: isRead,
                               ),
                             );
                           },
@@ -274,6 +292,8 @@ class ChatItem extends StatelessWidget {
   final String message;
   final String time;
   final bool isOnline;
+  final String profileImageUrl;
+  final bool isRead;
 
   const ChatItem({
     super.key,
@@ -281,6 +301,8 @@ class ChatItem extends StatelessWidget {
     required this.message,
     required this.time,
     this.isOnline = false,
+    required this.profileImageUrl,
+    required this.isRead,
   });
 
   @override
@@ -288,8 +310,8 @@ class ChatItem extends StatelessWidget {
     return ListTile(
       leading: Stack(
         children: [
-          const CircleAvatar(
-            backgroundImage: AssetImage('assets/images/nopicture.png'),
+          CircleAvatar(
+            backgroundImage: NetworkImage(profileImageUrl),
             radius: 25,
           ),
           if (isOnline)
@@ -309,8 +331,14 @@ class ChatItem extends StatelessWidget {
         ],
       ),
       title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
-      subtitle: Text(message),
+      subtitle: Text(
+        message,
+        style: TextStyle(
+          fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
+        ),
+      ),
       trailing: Text(time),
     );
   }
 }
+

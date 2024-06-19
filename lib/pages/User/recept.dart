@@ -13,18 +13,18 @@ class ReceptPage extends StatefulWidget {
 
 class _ReceptPageState extends State<ReceptPage> {
   int _selectedIndex = 2;
-  String _currentUserId = '';
+  String? _currentUserId;
 
   @override
   void initState() {
     super.initState();
-    _loadCurrentUserId();
+    _loadUserId();
   }
 
-  Future<void> _loadCurrentUserId() async {
+  Future<void> _loadUserId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      _currentUserId = prefs.getString('userEmail') ?? '';
+      _currentUserId = prefs.getString('userId'); // Use userId instead of email
     });
   }
 
@@ -64,19 +64,29 @@ class _ReceptPageState extends State<ReceptPage> {
   }
 
   Future<void> _startNewConversation(String email) async {
-    DocumentSnapshot userSnapshot = await FirebaseFirestore.instance.collection('Users').doc(email).get();
-    if (userSnapshot.exists) {
+    // Get the current user's ID
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    _currentUserId = prefs.getString('userId');
+  
+    QuerySnapshot userQuerySnapshot = await FirebaseFirestore.instance
+        .collection('Users')
+        .where('Email', isEqualTo: email)
+        .limit(1)
+        .get();
+  
+    if (userQuerySnapshot.docs.isNotEmpty) {
+      DocumentSnapshot userSnapshot = userQuerySnapshot.docs.first;
       String otherUserId = userSnapshot.id;
-
+  
       // Check if a conversation already exists
       QuerySnapshot conversationSnapshot = await FirebaseFirestore.instance
           .collection('conversations')
           .where('participants', arrayContains: _currentUserId)
           .get();
-
+  
       bool conversationExists = false;
       String conversationId = '';
-
+  
       for (var doc in conversationSnapshot.docs) {
         List participants = doc['participants'];
         if (participants.contains(otherUserId)) {
@@ -85,17 +95,17 @@ class _ReceptPageState extends State<ReceptPage> {
           break;
         }
       }
-
+  
       if (!conversationExists) {
         // Create a new conversation
         DocumentReference conversationRef = await FirebaseFirestore.instance.collection('conversations').add({
-          'participants': [_currentUserId, otherUserId],
+          'participants': [_currentUserId, otherUserId], // Use userIds instead of emails
           'lastMessage': '',
           'timestamp': FieldValue.serverTimestamp(),
         });
         conversationId = conversationRef.id;
       }
-
+  
       // Navigate to ChatPage
       Navigator.push(
         context,
@@ -110,7 +120,7 @@ class _ReceptPageState extends State<ReceptPage> {
             var end = Offset.zero;
             var tween = Tween(begin: begin, end: end);
             var offsetAnimation = animation.drive(tween);
-
+  
             return SlideTransition(
               position: offsetAnimation,
               child: child,
@@ -318,3 +328,4 @@ class ChatItem extends StatelessWidget {
     );
   }
 }
+

@@ -36,7 +36,8 @@ class _ChatPageState extends State<ChatPage> {
   Future<void> _loadUserId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      _currentUserId = prefs.getString('userEmail'); // Assuming email is used as userId
+      _currentUserId = prefs.getString('userId'); // Use userId instead of email
+      print("Current User ID: $_currentUserId"); // Print userId to console
     });
   }
 
@@ -98,19 +99,37 @@ class _ChatPageState extends State<ChatPage> {
 
   void _sendMessage(String content, bool isImage) {
     if (content.trim().isEmpty || _currentUserId == null) {
+      print("Cannot send message: content is empty or user ID is null");
       return;
     }
 
-    _firestore.collection('conversations').doc(widget.conversationId).collection('messages').add({
+    print("Sending message from User ID: $_currentUserId"); // Print userId when sending a message
+
+    final messageData = {
       'text': isImage ? null : content,
       'imageUrl': isImage ? content : null,
       'senderId': _currentUserId,
       'timestamp': FieldValue.serverTimestamp(),
+    };
+
+    print("Message Data: $messageData"); // Print message data
+
+    _firestore.collection('conversations').doc(widget.conversationId).collection('messages').add(messageData).then((value) {
+      print("Message sent successfully");
+    }).catchError((error) {
+      print("Failed to send message: $error");
     });
 
-    _firestore.collection('conversations').doc(widget.conversationId).update({
+    final conversationData = {
       'lastMessage': isImage ? 'Photo' : content,
       'timestamp': FieldValue.serverTimestamp(),
+      'participants': FieldValue.arrayUnion([_currentUserId]) // Ensure correct userId is added
+    };
+
+    _firestore.collection('conversations').doc(widget.conversationId).update(conversationData).then((value) {
+      print("Conversation updated successfully");
+    }).catchError((error) {
+      print("Failed to update conversation: $error");
     });
 
     _controller.clear();
@@ -199,4 +218,3 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 }
-
