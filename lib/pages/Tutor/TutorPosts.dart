@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 //import 'package:tutorinsa/pages/User/createpost.dart';
-import 'package:tutorinsa/pages/Tutor/profilepagetutor.dart';
+import 'package:tutorinsa/pages/Common/profilepage.dart';
 import 'package:animations/animations.dart';
 import 'package:tutorinsa/pages/Tutor/NavigationBar.dart';
 

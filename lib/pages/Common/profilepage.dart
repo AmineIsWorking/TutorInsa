@@ -5,6 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:tutorinsa/pages/Common/home.dart';
+import 'package:tutorinsa/pages/User/posts.dart'; // Import UserPage
+import 'package:tutorinsa/pages/Tutor/TutorPosts.dart'; // Import TutorPostsPage
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -26,7 +28,8 @@ class _ProfilePageState extends State<ProfilePage> {
   String filiere = 'Computer Science';
   String annee = '3rd Year';
   String imageUrl = '';
-  String Password ='';
+  String password = '';
+  bool isTutor = true; // Toggle for tutor/student
 
   bool isEditingName = false;
   bool isEditingLastName = false;
@@ -43,8 +46,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _loadUserId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-     userId = prefs.getString('userId')!;
-
+    userId = prefs.getString('userId')!;
 
     _fetchUserProfile();
   }
@@ -53,14 +55,15 @@ class _ProfilePageState extends State<ProfilePage> {
     var doc = await FirebaseFirestore.instance.collection('Users').doc(userId).get();
     if (doc.exists) {
       setState(() {
-        name = doc['Nom'];
-        lastName = doc['Prénom'];
-        insaAddress = doc['Email'];
-        filiere = doc['Filiere'];
-        annee = doc['Annee'];
-        imageUrl = doc['Image'];
+        name = doc['Nom'] ?? 'Nom inconnu';
+        lastName = doc['Prénom'] ?? 'Prénom inconnu';
+        insaAddress = doc['Email'] ?? 'insa@example.com';
+        filiere = doc['Filiere'] ?? 'Filière inconnue';
+        annee = doc['Annee'] ?? 'Année inconnue';
+        imageUrl = doc['Image'] ?? '';
         isLoading = false;
-        Password= doc['Password'];
+        password = doc['Password'] ?? '';
+        isTutor = doc['isTuteur'] ?? true; // Fetch the isTuteur field
       });
     }
   }
@@ -73,7 +76,8 @@ class _ProfilePageState extends State<ProfilePage> {
       'Filiere': filiere,
       'Annee': annee,
       'Image': imageUrl,
-      'Password': Password,
+      'Password': password,
+      'isTuteur': isTutor, // Update the isTuteur field
     });
   }
 
@@ -99,6 +103,40 @@ class _ProfilePageState extends State<ProfilePage> {
         _uploadImage();
       }
     });
+  }
+
+  Future<void> _disconnectUser() async {
+    // Mettre à jour le champ 'connected' à false dans Firestore
+    await FirebaseFirestore.instance.collection('Users').doc(userId).update({
+      'connected': false,
+    });
+
+    // Naviguer vers la page d'accueil après la déconnexion
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const HomePage(),
+      ),
+    );
+  }
+
+  void _toggleRole() {
+    setState(() {
+      isTutor = !isTutor;
+      _updateUserProfile();
+    });
+
+    if (isTutor) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const TutorPostsPage()),
+      );
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const UserPage()),
+      );
+    }
   }
 
   @override
@@ -217,29 +255,37 @@ class _ProfilePageState extends State<ProfilePage> {
                   _updateUserProfile();
                 }),
                 const SizedBox(height: 16),
-                _buildEditableField('Mot de passe', '******', isEditingPassword, (value) {
-                  // Gérer la mise à jour du mot de passe
-                   setState(() {
-                     Password = value;
-                   });
+                _buildEditableField('Mot de passe', '****', isEditingPassword, (value) {
+                  setState(() {
+                    password = value;
+                  });
                 }, () {
                   setState(() {
                     isEditingPassword = !isEditingPassword;
                   });
                 }, isPassword: true),
                 const SizedBox(height: 24),
+                if (isTutor != null) // Display the toggle only if isTutor is not null
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Tuteur',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                      Switch(
+                        value: isTutor,
+                        onChanged: (value) {
+                          _toggleRole();
+                        },
+                      ),
+                    ],
+                  ),
                 const Divider(),
                 ListTile(
                   title: const Text('Déconnexion'),
                   leading: const Icon(Icons.logout, color: Colors.red),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const HomePage(),
-                      ),
-                    );
-                  },
+                  onTap: _disconnectUser,
                 ),
                 ListTile(
                   title: const Text('Supprimer le compte'),
@@ -262,18 +308,18 @@ class _ProfilePageState extends State<ProfilePage> {
         Expanded(
           child: isEditing
               ? TextFormField(
-            initialValue: value,
-            decoration: InputDecoration(
-              labelText: label,
-              border: const OutlineInputBorder(),
-            ),
-            obscureText: isPassword,
-            onChanged: onChanged,
-          )
+                  initialValue: value,
+                  decoration: InputDecoration(
+                    labelText: label,
+                    border: const OutlineInputBorder(),
+                  ),
+                  obscureText: isPassword,
+                  onChanged: onChanged,
+                )
               : ListTile(
-            subtitle: Text(label),
-            title: Text(value),
-          ),
+                  subtitle: Text(label),
+                  title: Text(value),
+                ),
         ),
         const SizedBox(width: 10),
         TextButton(

@@ -11,6 +11,7 @@ import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'package:animations/animations.dart';
 import 'package:tutorinsa/pages/Common/navigation_bar.dart';
 
+
 class UserPage extends StatefulWidget {
   const UserPage({super.key});
 
