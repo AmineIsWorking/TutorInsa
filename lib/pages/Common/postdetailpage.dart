@@ -17,7 +17,7 @@ class PostDetailPage extends StatefulWidget {
   final String annee;
 
   const PostDetailPage({
-    Key? key,
+    super.key,
     required this.postId,
     required this.title,
     required this.content,
@@ -26,7 +26,7 @@ class PostDetailPage extends StatefulWidget {
     required this.tags,
     required this.name,
     required this.annee,
-  }) : super(key: key);
+  });
 
   @override
   _PostDetailPageState createState() => _PostDetailPageState();
@@ -34,9 +34,6 @@ class PostDetailPage extends StatefulWidget {
 
 class _PostDetailPageState extends State<PostDetailPage> {
   final TextEditingController _commentController = TextEditingController();
-  String? _currentUserImage;
-  String? _currentUserName;
-  String? _currentUserAnnee;
 
   final ImagePicker _picker = ImagePicker();
 
@@ -53,9 +50,6 @@ class _PostDetailPageState extends State<PostDetailPage> {
       DocumentSnapshot userSnapshot = await FirebaseFirestore.instance.collection('Users').doc(userId).get();
       if (userSnapshot.exists) {
         setState(() {
-          _currentUserImage = userSnapshot['Image'];
-          _currentUserName = userSnapshot['Name'];
-          _currentUserAnnee = userSnapshot['Annee'];
 
         });
       }
@@ -132,8 +126,8 @@ class _PostDetailPageState extends State<PostDetailPage> {
                       children: [
                         CircleAvatar(
                           backgroundImage: widget.userImage.isNotEmpty ? NetworkImage(widget.userImage) : null,
-                          child: widget.userImage.isEmpty ? const Icon(Icons.person) : null,
                           radius: 20,
+                          child: widget.userImage.isEmpty ? const Icon(Icons.person) : null,
                         ),
                         const SizedBox(width: 10),
                         Column(
@@ -245,7 +239,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                                 children: [
                                   Text(
                                     '${comment['userName']}, ${comment['year']}', // Ajout du nom et de l'année
-                                    style: TextStyle(fontWeight: FontWeight.bold),
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
                                   ),
                                   Text(comment['comment']),
                                   if (comment['imageUrl'] != null)
@@ -281,7 +275,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   Expanded(
                     child: TextField(
                       controller: _commentController,
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         hintText: 'Ajouter un commentaire...',
                       ),
                     ),

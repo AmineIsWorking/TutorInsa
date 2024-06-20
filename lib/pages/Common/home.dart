@@ -4,6 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tutorinsa/pages/Tutor/TutorPosts.dart';
 import 'package:tutorinsa/pages/User/posts.dart';
 import 'package:tutorinsa/pages/Common/subscribe.dart';
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -28,11 +30,14 @@ class _HomePageState extends State<HomePage> {
     String email = _emailController.text;
     String password = _passwordController.text;
 
+    // Hash the input password
+    String hashedPassword = hashPassword(password);
+
     // Vérifiez les informations dans Firestore
     CollectionReference users = FirebaseFirestore.instance.collection('Users');
     QuerySnapshot querySnapshot = await users
         .where('Email', isEqualTo: email)
-        .where('Password', isEqualTo: password)
+        .where('Password', isEqualTo: hashedPassword)
         .get();
 
     if (querySnapshot.docs.isNotEmpty) {
@@ -86,6 +91,12 @@ class _HomePageState extends State<HomePage> {
         },
       );
     }
+  }
+
+  String hashPassword(String password) {
+    var bytes = utf8.encode(password); // Convert string to bytes
+    var digest = sha256.convert(bytes); // Hash the bytes
+    return digest.toString(); // Convert hash to string
   }
 
   @override

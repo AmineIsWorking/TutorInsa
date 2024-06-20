@@ -11,8 +11,9 @@ import 'dart:async';
 import 'package:page_transition/page_transition.dart';
 import 'package:confetti/confetti.dart';
 import 'package:tutorinsa/pages/Common/home.dart';
-import 'package:tutorinsa/pages/Tutor/TutorPosts.dart';
-import 'package:tutorinsa/pages/User/posts.dart';
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
+
 
 class SubscribePage1 extends StatefulWidget {
   const SubscribePage1({super.key});
@@ -130,8 +131,21 @@ class SubscribePage2 extends StatefulWidget {
 
 class _SubscribePage2State extends State<SubscribePage2> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final TextEditingController _anneeController = TextEditingController();
-  final TextEditingController _filiereController = TextEditingController();
+  String? _selectedAnnee;
+  String? _selectedFiliere;
+
+  final List<String> annees = ['1A', '2A', '3A', '4A', '5A'];
+  final Map<String, List<String>> filieresByAnnee = {
+    '1A': ['STPI'],
+    '2A': ['STI', 'MRI', 'ERE', 'GSI', 'ENP'],
+    '3A': ['STI', 'MRI', 'ERE', 'GSI', 'ENP'],
+    '4A': ['STI', 'MRI', 'ERE', 'GSI', 'ENP'],
+    '5A': ['STI', 'MRI', 'ERE', 'GSI', 'ENP'],
+  };
+
+  List<String> getFilieresForAnnee(String annee) {
+    return filieresByAnnee[annee] ?? [];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -160,41 +174,68 @@ class _SubscribePage2State extends State<SubscribePage2> {
                     style: TextStyle(fontSize: 24, color: Colors.white),
                   ),
                   const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _anneeController,
+                  DropdownButtonFormField<String>(
                     decoration: const InputDecoration(
                       labelText: 'Année',
                       labelStyle: TextStyle(color: Colors.white),
                       border: OutlineInputBorder(),
                       fillColor: Color.fromARGB(57, 61, 37, 168),
                       filled: true,
-                      hintText: 'Ex: 1A, 2A...',
-                      hintStyle: TextStyle(color: Color.fromARGB(108, 255, 255, 255)),
                     ),
-                    style: const TextStyle(color: Color.fromARGB(255, 255, 255, 255)),
+                    dropdownColor: const Color.fromARGB(255, 20, 28, 68),
+                    value: _selectedAnnee,
+                    items: annees.map((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(
+                          value,
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (newValue) {
+                      setState(() {
+                        _selectedAnnee = newValue;
+                        _selectedFiliere = null; // Reset filiere when annee changes
+                      });
+                    },
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Veuillez entrer votre année';
+                        return 'Veuillez sélectionner votre année';
                       }
                       return null;
                     },
                   ),
                   const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _filiereController,
+                  DropdownButtonFormField<String>(
                     decoration: const InputDecoration(
                       labelText: 'Filière',
                       labelStyle: TextStyle(color: Colors.white),
                       border: OutlineInputBorder(),
                       fillColor: Color.fromARGB(57, 61, 37, 168),
                       filled: true,
-                      hintText: 'Ex: STI, MRI...',
-                      hintStyle: TextStyle(color: Color.fromARGB(108, 255, 255, 255)),
                     ),
-                    style: const TextStyle(color: Color.fromARGB(255, 255, 255, 255)),
+                    dropdownColor: const Color.fromARGB(255, 20, 28, 68),
+                    value: _selectedFiliere,
+                    items: _selectedAnnee != null
+                        ? getFilieresForAnnee(_selectedAnnee!).map((String value) {
+                            return DropdownMenuItem<String>(
+                              value: value,
+                              child: Text(
+                                value,
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                            );
+                          }).toList()
+                        : [],
+                    onChanged: (newValue) {
+                      setState(() {
+                        _selectedFiliere = newValue;
+                      });
+                    },
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Veuillez entrer votre filière';
+                        return 'Veuillez sélectionner votre filière';
                       }
                       return null;
                     },
@@ -213,8 +254,8 @@ class _SubscribePage2State extends State<SubscribePage2> {
                             child: SubscribePage3(
                               nom: widget.nom,
                               prenom: widget.prenom,
-                              annee: _anneeController.text,
-                              filiere: _filiereController.text,
+                              annee: _selectedAnnee!,
+                              filiere: _selectedFiliere!,
                             ),
                             duration: const Duration(milliseconds: 400),
                           ),
@@ -321,9 +362,9 @@ class _SubscribePage3State extends State<SubscribePage3> {
                     controller: _passwordController,
                     decoration: InputDecoration(
                       labelText: 'Password',
-                      labelStyle: TextStyle(color: Colors.white),
-                      border: OutlineInputBorder(),
-                      fillColor: Color.fromARGB(57, 61, 37, 168),
+                      labelStyle: const TextStyle(color: Colors.white),
+                      border: const OutlineInputBorder(),
+                      fillColor: const Color.fromARGB(57, 61, 37, 168),
                       filled: true,
                       suffixIcon: IconButton(
                         icon: Icon(
@@ -479,7 +520,7 @@ class _SubscribePage4State extends State<SubscribePage4> {
                               email: widget.email,
                               password: widget.password,
                             ),
-                            child: SubscribePage5(
+                            child: SubscribePage7(
                               nom: widget.nom,
                               prenom: widget.prenom,
                               annee: widget.annee,
@@ -518,6 +559,156 @@ class _SubscribePage4State extends State<SubscribePage4> {
   }
 }
 
+
+class SubscribePage7 extends StatefulWidget {
+  final String nom;
+  final String prenom;
+  final String annee;
+  final String filiere;
+  final String email;
+  final String password;
+  final File? profileImage;
+
+  const SubscribePage7({
+    super.key,
+    required this.nom,
+    required this.prenom,
+    required this.annee,
+    required this.filiere,
+    required this.email,
+    required this.password,
+    required this.profileImage,
+  });
+
+  @override
+  _SubscribePage7State createState() => _SubscribePage7State();
+}
+
+class _SubscribePage7State extends State<SubscribePage7> {
+  List<String> matieres = [
+    'Mathématiques',
+    'Physique',
+    'Chimie',
+    'Biologie',
+    'Histoire',
+    'Géographie',
+    'Français',
+    'Anglais',
+    'Informatique',
+    'Philosophie',
+  ];
+
+  List<bool> isSelected = List<bool>.generate(10, (index) => false);
+  List<String> selectedMatieres = []; // List to store preferred subjects
+
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color.fromARGB(255, 20, 28, 68),
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage("assets/images/background2.jpg"),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const Text(
+                    'Quelles sont vos matières préférées ?',
+                    style: TextStyle(fontSize: 24, color: Colors.white),
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: matieres.asMap().entries.map((entry) {
+                          int index = entry.key;
+                          String matiere = entry.value;
+                          return ChoiceChip(
+                            label: Text(
+                              matiere,
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                            selected: isSelected[index],
+                            onSelected: (bool selected) {
+                              setState(() {
+                                isSelected[index] = selected;
+                                if (selected) {
+                                  selectedMatieres.add(matiere); // Add subject to selected list
+                                } else {
+                                  selectedMatieres.remove(matiere); // Remove subject from selected list
+                                }
+                              });
+                            },
+                            backgroundColor: isSelected[index]
+                                ? Colors.blue
+                                : const Color.fromARGB(255, 59, 70, 150),
+                            selectedColor: Colors.blue,
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        if (_formKey.currentState!.validate() && selectedMatieres.isNotEmpty) {
+                          Navigator.of(context).push(
+                            PageTransition(
+                              type: PageTransitionType.rightToLeftJoined,
+                              childCurrent: widget,
+                              child: SubscribePage5(
+                                nom: widget.nom,
+                                prenom: widget.prenom,
+                                annee: widget.annee,
+                                filiere: widget.filiere,
+                                email: widget.email,
+                                password: widget.password,
+                                profileImage: widget.profileImage,
+                                preferredMatieres: selectedMatieres, // Pass selected subjects to next page
+                              ),
+                              duration: const Duration(milliseconds: 400),
+                            ),
+                          );
+                        } else {
+                          if (selectedMatieres.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Veuillez choisir au moins une matière.'),
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      child: const Text('Suivant'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
 class SubscribePage5 extends StatelessWidget {
   final String nom;
   final String prenom;
@@ -526,6 +717,7 @@ class SubscribePage5 extends StatelessWidget {
   final String email;
   final String password;
   final File? profileImage;
+  final List<String> preferredMatieres; // List of preferred subjects
 
   const SubscribePage5({
     super.key,
@@ -536,6 +728,7 @@ class SubscribePage5 extends StatelessWidget {
     required this.email,
     required this.password,
     this.profileImage,
+    required this.preferredMatieres,
   });
 
   @override
@@ -578,6 +771,7 @@ class SubscribePage5 extends StatelessWidget {
                           password: password,
                           profileImage: profileImage,
                           isTuteur: true,
+                          preferredMatieres: preferredMatieres, // Pass preferred subjects to next page
                         ),
                         duration: const Duration(milliseconds: 400),
                       ),
@@ -604,7 +798,8 @@ class SubscribePage5 extends StatelessWidget {
                           password: password,
                           profileImage: profileImage,
                           isTuteur: false,
-                          selectedMatieres: const [],
+                          selectedMatieres: const [], // Pass an empty list for non-tutors
+                          preferredMatieres: preferredMatieres, // Pass the preferred subjects
                         ),
                         duration: const Duration(milliseconds: 400),
                       ),
@@ -624,6 +819,8 @@ class SubscribePage5 extends StatelessWidget {
   }
 }
 
+
+
 class CongratulationsPage extends StatefulWidget {
   final String nom;
   final String prenom;
@@ -633,7 +830,8 @@ class CongratulationsPage extends StatefulWidget {
   final String password;
   final File? profileImage;
   final bool isTuteur;
-  final List<String> selectedMatieres; // Sera null si l'utilisateur n'est pas un tuteur
+  final List<String> selectedMatieres;
+  final List<String> preferredMatieres;
 
   const CongratulationsPage({
     super.key,
@@ -645,7 +843,8 @@ class CongratulationsPage extends StatefulWidget {
     required this.password,
     this.profileImage,
     required this.isTuteur,
-    required this.selectedMatieres, // Initialisation de la variable
+    required this.selectedMatieres,
+    required this.preferredMatieres,
   });
 
   @override
@@ -658,8 +857,7 @@ class _CongratulationsPageState extends State<CongratulationsPage> {
 
   @override
   void initState() {
-    _confettiController =
-        ConfettiController(duration: const Duration(seconds: 3));
+    _confettiController = ConfettiController(duration: const Duration(seconds: 3));
     _confettiController.play();
     Timer(const Duration(seconds: 3), () {
       _confettiController.stop();
@@ -669,7 +867,10 @@ class _CongratulationsPageState extends State<CongratulationsPage> {
             'Matieres': widget.selectedMatieres,
           }, SetOptions(merge: true));
         }
-        _storeUserEmail(widget.email); // Store the user's email
+        usersRefs.doc(widget.email).set({
+          'PreferredMatieres': widget.preferredMatieres,
+        }, SetOptions(merge: true));
+        _storeUserEmail(widget.email);
         _redirectUser();
       });
     });
@@ -681,6 +882,12 @@ class _CongratulationsPageState extends State<CongratulationsPage> {
     _confettiController.dispose();
     super.dispose();
   }
+  String hashPassword(String password) {
+    var bytes = utf8.encode(password); // convert string to bytes
+    var digest = sha256.convert(bytes); // hash the bytes
+    return digest.toString(); // convert hash to string
+  }
+
 
   Future<void> _uploadUserData() async {
     String? imageUrl;
@@ -691,16 +898,19 @@ class _CongratulationsPageState extends State<CongratulationsPage> {
       imageUrl = await taskSnapshot.ref.getDownloadURL();
     }
 
+    // Hash the password before saving
+    String hashedPassword = hashPassword(widget.password);
+
     await usersRefs.doc(widget.email).set({
       'Nom': widget.nom,
       'Prénom': widget.prenom,
       'Annee': widget.annee,
       'Filiere': widget.filiere,
       'Email': widget.email,
-      'Password': widget.password,
+      'Password': hashedPassword, // Save the hashed password
       'Image': imageUrl,
       'isTuteur': widget.isTuteur,
-      'connected': true, // Add the connected field
+      'connected': true,
     });
 
     if (widget.isTuteur) {
@@ -708,6 +918,10 @@ class _CongratulationsPageState extends State<CongratulationsPage> {
         'Matieres': widget.selectedMatieres,
       });
     }
+
+    await usersRefs.doc(widget.email).update({
+      'PreferredMatieres': widget.preferredMatieres,
+    });
   }
 
   Future<void> _storeUserEmail(String email) async {
@@ -716,15 +930,9 @@ class _CongratulationsPageState extends State<CongratulationsPage> {
   }
 
   void _redirectUser() {
-    if (widget.isTuteur) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const HomePage()),
-      );
-    } else {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const HomePage()),
-      );
-    }
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (context) => const HomePage()),
+    );
   }
 
   @override
@@ -758,16 +966,18 @@ class _CongratulationsPageState extends State<CongratulationsPage> {
                   Text(
                     'Félicitations !',
                     style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Color.fromARGB(255, 255, 255, 255)),
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Color.fromARGB(255, 255, 255, 255),
+                    ),
                   ),
                   Text(
                     'Bienvenue sur TutorInsa !',
                     style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Color.fromARGB(255, 255, 255, 255)),
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Color.fromARGB(255, 255, 255, 255),
+                    ),
                   ),
                 ],
               ),
@@ -779,6 +989,7 @@ class _CongratulationsPageState extends State<CongratulationsPage> {
   }
 }
 
+
 class SubscribePage6 extends StatefulWidget {
   final String nom;
   final String prenom;
@@ -787,7 +998,8 @@ class SubscribePage6 extends StatefulWidget {
   final String email;
   final String password;
   final File? profileImage;
-  final bool isTuteur; // Nouvelle variable booléenne
+  final bool isTuteur;
+  final List<String> preferredMatieres; // Nouvelle variable pour les matières préférées
 
   const SubscribePage6({
     super.key,
@@ -798,7 +1010,8 @@ class SubscribePage6 extends StatefulWidget {
     required this.email,
     required this.password,
     required this.profileImage,
-    required this.isTuteur, // Initialisation de la variable
+    required this.isTuteur,
+    required this.preferredMatieres, // Initialisation de la variable
   });
 
   @override
@@ -888,8 +1101,7 @@ class _SubscribePage6State extends State<SubscribePage6> {
                   Center(
                     child: ElevatedButton(
                       onPressed: () {
-                        if (_formKey.currentState!.validate() &&
-                            selectedMatieres.isNotEmpty) {
+                        if (_formKey.currentState!.validate() && selectedMatieres.isNotEmpty) {
                           Navigator.of(context).push(
                             PageTransition(
                               type: PageTransitionType.rightToLeftJoined,
@@ -904,6 +1116,7 @@ class _SubscribePage6State extends State<SubscribePage6> {
                                 profileImage: widget.profileImage,
                                 isTuteur: widget.isTuteur,
                                 selectedMatieres: selectedMatieres, // Pass selected subjects to CongratulationsPage
+                                preferredMatieres: widget.preferredMatieres, // Pass preferred subjects to CongratulationsPage
                               ),
                               duration: const Duration(milliseconds: 400),
                             ),
@@ -930,4 +1143,5 @@ class _SubscribePage6State extends State<SubscribePage6> {
     );
   }
 }
+
 

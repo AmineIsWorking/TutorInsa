@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_nav_bar/google_nav_bar.dart';
 import 'package:page_transition/page_transition.dart';
 import 'package:tutorinsa/pages/Tutor/TutorPosts.dart';
-import 'package:tutorinsa/pages/Tutor/TutorLive.dart';
 import 'package:tutorinsa/pages/Common/home.dart';
 import 'package:tutorinsa/pages/Tutor/TutorRecept.dart';
 import 'package:tutorinsa/pages/Tutor/TutorRDV.dart';
@@ -57,10 +56,6 @@ class NavigationBar2 extends StatelessWidget {
                     text: 'Posts',
                   ),
                   GButton(
-                    icon: Icons.play_arrow_rounded,
-                    text: 'Live',
-                  ),
-                  GButton(
                     icon: Icons.mail_rounded,
                     text: 'Messages',
                   ),
@@ -81,12 +76,9 @@ class NavigationBar2 extends StatelessWidget {
                       nextPage = const TutorPostsPage();
                       break;
                     case 1:
-                      nextPage = const TutorLivePage();
-                      break;
-                    case 2:
                       nextPage = const TutorReceptPage();
                       break;
-                    case 3:
+                    case 2:
                       nextPage = const TutorRDVPage();
                       break;
                     default:

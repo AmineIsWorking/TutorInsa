@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tutorinsa/pages/Common/navigation_bar.dart';
 import 'package:tutorinsa/pages/Common/chatpage.dart';
@@ -12,7 +13,7 @@ class ReceptPage extends StatefulWidget {
 }
 
 class _ReceptPageState extends State<ReceptPage> {
-  int _selectedIndex = 2;
+  int _selectedIndex = 1;
   String? _currentUserId;
 
   @override
@@ -139,9 +140,10 @@ class _ReceptPageState extends State<ReceptPage> {
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
-                  .collection('conversations')
-                  .where('participants', arrayContains: _currentUserId)
-                  .snapshots(),
+                .collection('conversations')
+                .where('participants', arrayContains: _currentUserId)
+                .orderBy('timestamp', descending: true) // Ajoutez cette ligne
+                .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
@@ -192,8 +194,8 @@ class _ReceptPageState extends State<ReceptPage> {
                                 ? lastMessageDoc['text'] ?? 'Image'
                                 : 'Aucun message';
                             final lastMessageTime = lastMessageDoc != null && lastMessageDoc['timestamp'] != null
-                                ? (lastMessageDoc['timestamp'] as Timestamp).toDate().toString()
-                                : 'Inconnu';
+                              ? DateFormat('HH:mm dd/MM').format((lastMessageDoc['timestamp'] as Timestamp).toDate())
+                              : 'Inconnu';
 
                             return GestureDetector(
                               onTap: () {

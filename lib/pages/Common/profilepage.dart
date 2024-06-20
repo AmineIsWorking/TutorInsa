@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:tutorinsa/pages/Common/addmatierespage.dart';
 import 'package:tutorinsa/pages/Common/home.dart';
 import 'package:tutorinsa/pages/User/posts.dart'; // Import UserPage
 import 'package:tutorinsa/pages/Tutor/TutorPosts.dart'; // Import TutorPostsPage
@@ -29,8 +30,9 @@ class _ProfilePageState extends State<ProfilePage> {
   String annee = '3rd Year';
   String imageUrl = '';
   String password = '';
-  bool isTutor = true; // Toggle for tutor/student
+  bool isTutor = false; // Default to false
   List<String> matieres = []; // List to hold matieres for tutor
+  List<String> preferredMatieres = []; // List to hold preferred matieres
 
   bool isEditingName = false;
   bool isEditingLastName = false;
@@ -64,8 +66,25 @@ class _ProfilePageState extends State<ProfilePage> {
         imageUrl = doc['Image'] ?? '';
         isLoading = false;
         password = doc['Password'] ?? '';
-        isTutor = doc['isTuteur'] ?? true; // Fetch the isTuteur field
-        matieres = List<String>.from(doc['Matieres'] ?? []); // Fetch the Matieres field
+        isTutor = doc['isTuteur'] ?? false; // Fetch the isTuteur field
+        if ((doc.data() as Map).containsKey('Matieres')) {
+          matieres = List<String>.from(doc['Matieres']);
+        } else {
+          // If Matieres field doesn't exist, initialize it with an empty list
+          FirebaseFirestore.instance.collection('Users').doc(userId).update({
+            'Matieres': [],
+          });
+          matieres = [];
+        }
+        if ((doc.data() as Map).containsKey('PreferredMatieres')) {
+          preferredMatieres = List<String>.from(doc['PreferredMatieres']);
+        } else {
+          // If PreferredMatieres field doesn't exist, initialize it with an empty list
+          FirebaseFirestore.instance.collection('Users').doc(userId).update({
+            'PreferredMatieres': [],
+          });
+          preferredMatieres = [];
+        }
       });
     }
   }
@@ -81,6 +100,7 @@ class _ProfilePageState extends State<ProfilePage> {
       'Password': password,
       'isTuteur': isTutor, // Update the isTuteur field
       'Matieres': matieres, // Update the Matieres field
+      'PreferredMatieres': preferredMatieres, // Update the PreferredMatieres field
     });
   }
 
@@ -124,21 +144,41 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _toggleRole() {
-    setState(() {
-      isTutor = !isTutor;
-      _updateUserProfile();
-    });
-
-    if (isTutor) {
-      Navigator.pushReplacement(
+    if (!isTutor && matieres.isEmpty) {
+      // Redirect to AddMatierePage if no Matieres
+      Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const TutorPostsPage()),
-      );
+        MaterialPageRoute(builder: (context) => AddMatierePage(userId: userId)),
+      ).then((value) {
+        _fetchUserProfile(); // Re-fetch the profile to get updated Matieres
+        if (matieres.isNotEmpty) {
+          setState(() {
+            isTutor = true;
+            _updateUserProfile();
+          });
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const TutorPostsPage()),
+          );
+        }
+      });
     } else {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const UserPage()),
-      );
+      setState(() {
+        isTutor = !isTutor;
+        _updateUserProfile();
+      });
+
+      if (isTutor) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const TutorPostsPage()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const UserPage()),
+        );
+      }
     }
   }
 
@@ -151,9 +191,25 @@ class _ProfilePageState extends State<ProfilePage> {
     });
   }
 
+  void _addPreferredMatiere(String matiere) {
+    setState(() {
+      if (matiere.isNotEmpty) {
+        preferredMatieres.add(matiere);
+        _updateUserProfile();
+      }
+    });
+  }
+
   void _removeMatiere(String matiere) {
     setState(() {
       matieres.remove(matiere);
+      _updateUserProfile();
+    });
+  }
+
+  void _removePreferredMatiere(String matiere) {
+    setState(() {
+      preferredMatieres.remove(matiere);
       _updateUserProfile();
     });
   }
@@ -165,7 +221,7 @@ class _ProfilePageState extends State<ProfilePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Matieres',
+          'Mes matieres tutorées',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         ...matieres.map((matiere) => ListTile(
@@ -188,31 +244,161 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  void _showAddMatiereDialog() {
-    TextEditingController matiereController = TextEditingController();
+  Widget _buildPreferredMatieresField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Mes matières préférées',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        ...preferredMatieres.map((matiere) => ListTile(
+          title: Text(matiere),
+          trailing: IconButton(
+            icon: const Icon(Icons.delete, color: Colors.red),
+            onPressed: () {
+              _removePreferredMatiere(matiere);
+            },
+          ),
+        )),
+        TextButton(
+          onPressed: () {
+            _showAddPreferredMatiereDialog();
+          },
+          child: const Text('Ajouter Matiere Préférée', style: TextStyle(color: Colors.blue)),
+        ),
+        const Divider(),
+      ],
+    );
+  }
 
+  void _showAddMatiereDialog() {
+    List<String> matieres = ['Mathématiques', 'Physique', 'Chimie', 'Informatique']; // Liste des matières disponibles
+    
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Ajouter Matiere'),
-          content: TextField(
-            controller: matiereController,
-            decoration: const InputDecoration(hintText: 'Entrer une matiere'),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15.0),
+          ),
+          title: const Text(
+            'Quelles matières voulez-vous ajouter ?',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Wrap(
+              spacing: 8.0, // espace entre les bulles
+              runSpacing: 8.0, // espace entre les lignes de bulles
+              children: matieres.map((matiere) => GestureDetector(
+                onTap: () {
+                  _addMatiere(matiere);
+                  Navigator.of(context).pop();
+                },
+                child: Chip(
+                  label: Text(
+                    matiere,
+                    style: const TextStyle(
+                      color: Colors.black87,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  backgroundColor: Colors.lightBlueAccent.withOpacity(0.3),
+                  padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 12.0),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.0),
+                  ),
+                  side: BorderSide(
+                    color: Colors.lightBlueAccent.withOpacity(0.6),
+                    width: 1.5,
+                  ),
+                ),
+              )).toList(),
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: const Text('Annuler'),
+              child: const Text(
+                'Annuler',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.blueAccent,
+                ),
+              ),
             ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showAddPreferredMatiereDialog() {
+    List<String> matieres = ['Mathématiques', 'Physique', 'Chimie', 'Informatique']; // Liste des matières disponibles
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15.0),
+          ),
+          title: const Text(
+            'Quelles matières préférez-vous ?',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Wrap(
+              spacing: 8.0, // espace entre les bulles
+              runSpacing: 8.0, // espace entre les lignes de bulles
+              children: matieres.map((matiere) => GestureDetector(
+                onTap: () {
+                  _addPreferredMatiere(matiere);
+                  Navigator.of(context).pop();
+                },
+                child: Chip(
+                  label: Text(
+                    matiere,
+                    style: const TextStyle(
+                      color: Colors.black87,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  backgroundColor: Colors.lightGreenAccent.withOpacity(0.3),
+                  padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 12.0),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.0),
+                  ),
+                  side: BorderSide(
+                    color: Colors.lightGreenAccent.withOpacity(0.6),
+                    width: 1.5,
+                  ),
+                ),
+              )).toList(),
+            ),
+          ),
+          actions: [
             TextButton(
               onPressed: () {
-                _addMatiere(matiereController.text.trim());
                 Navigator.of(context).pop();
               },
-              child: const Text('Ajouter'),
+              child: const Text(
+                'Annuler',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.blueAccent,
+                ),
+              ),
             ),
           ],
         );
@@ -347,6 +533,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 }, isPassword: true),
                 const SizedBox(height: 24),
                 _buildMatieresField(),
+                _buildPreferredMatieresField(),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [

@@ -37,7 +37,7 @@ class _ChatPageState extends State<ChatPage> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       _currentUserId = prefs.getString('userId'); // Use userId instead of email
-      print("Current User ID: $_currentUserId"); // Print userId to console
+      // Print userId to console
     });
   }
 
@@ -99,11 +99,10 @@ class _ChatPageState extends State<ChatPage> {
 
   void _sendMessage(String content, bool isImage) {
     if (content.trim().isEmpty || _currentUserId == null) {
-      print("Cannot send message: content is empty or user ID is null");
       return;
     }
 
-    print("Sending message from User ID: $_currentUserId"); // Print userId when sending a message
+    // Print userId when sending a message
 
     final messageData = {
       'text': isImage ? null : content,
@@ -112,10 +111,9 @@ class _ChatPageState extends State<ChatPage> {
       'timestamp': FieldValue.serverTimestamp(),
     };
 
-    print("Message Data: $messageData"); // Print message data
+    // Print message data
 
     _firestore.collection('conversations').doc(widget.conversationId).collection('messages').add(messageData).then((value) {
-      print("Message sent successfully");
     }).catchError((error) {
       print("Failed to send message: $error");
     });
@@ -127,7 +125,6 @@ class _ChatPageState extends State<ChatPage> {
     };
 
     _firestore.collection('conversations').doc(widget.conversationId).update(conversationData).then((value) {
-      print("Conversation updated successfully");
     }).catchError((error) {
       print("Failed to update conversation: $error");
     });

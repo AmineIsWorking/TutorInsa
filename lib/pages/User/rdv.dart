@@ -17,7 +17,7 @@ class _RDVPageState extends State<RDVPage> {
   List<Map<String, dynamic>> _pastRDVs = [];
   List<Map<String, dynamic>> _pendingRDVs = [];
   Map<String, Map<String, List<Map<String, dynamic>>>> _usersBySubjectsAndYear = {};
-  int _selectedIndex = 3; // Set the default selected index to RDV
+  int _selectedIndex = 2; // Set the default selected index to RDV
 
   @override
   void initState() {
@@ -115,7 +115,16 @@ class _RDVPageState extends State<RDVPage> {
     });
   }
 
-  Widget _buildRendezVousList(List<Map<String, dynamic>> rdvs) {
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year.toString().substring(2)}';
+  }
+
+  Future<void> _deletePendingRendezVous(String rdvId) async {
+    await FirebaseFirestore.instance.collection('Rendezvous').doc(rdvId).delete();
+    _fetchPendingRendezVous(); // Refresh the list after deletion
+  }
+
+  Widget _buildRendezVousList(List<Map<String, dynamic>> rdvs, {bool isPending = false}) {
     if (rdvs.isEmpty) {
       return const Center(
         child: Text("Vous n'avez pas de rendez-vous en attente"),
@@ -127,11 +136,18 @@ class _RDVPageState extends State<RDVPage> {
       itemBuilder: (context, index) {
         final rdv = rdvs[index];
         final rdvDate = DateTime.parse(rdv['Date']);
+        final formattedDate = _formatDate(rdvDate);
         final rdvTime = rdv['Time'];
 
         return ListTile(
           title: Text(rdv['Matiere'] ?? 'No Description'),
-          subtitle: Text('Date: ${rdvDate.toLocal()} \nHeure: $rdvTime'),
+          subtitle: Text('Date: $formattedDate \nHeure: $rdvTime'),
+          trailing: isPending
+              ? TextButton(
+                  onPressed: () => _deletePendingRendezVous(rdv['id']),
+                  child: Text('Annuler', style: TextStyle(color: Colors.red)),
+                )
+              : null,
         );
       },
     );
@@ -189,7 +205,7 @@ class _RDVPageState extends State<RDVPage> {
                   },
                 );
               }).toList();
-            }).toList(),
+            }),
           ],
         );
       }).toList(),
@@ -379,7 +395,7 @@ class _RDVPageState extends State<RDVPage> {
             Expanded(
               child: TabBarView(
                 children: [
-                  _buildRendezVousList(_pendingRDVs),
+                  _buildRendezVousList(_pendingRDVs, isPending: true),
                   _buildRendezVousList(_upcomingRDVs),
                   _buildRendezVousList(_pastRDVs),
                 ],

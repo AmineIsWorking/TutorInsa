@@ -12,7 +12,7 @@ class TutorReceptPage extends StatefulWidget {
 }
 
 class _TutorReceptPageState extends State<TutorReceptPage> {
-  int _selectedIndex = 2;
+  int _selectedIndex = 1;
   String? _currentTutorId;
   String? _currentTutorEmail;
 
@@ -28,43 +28,12 @@ class _TutorReceptPageState extends State<TutorReceptPage> {
     _currentTutorId = prefs.getString('userId'); // Use userId instead of email
     _currentTutorEmail = prefs.getString('userEmail'); // Get user email
   });
-  print("Current Tutor ID: $_currentTutorId");
-  print("Current Tutor Email: $_currentTutorEmail");
 }
 
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
-  }
-
-  void _showNewConversationDialog() {
-    TextEditingController emailController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Démarrer une nouvelle conversation'),
-          content: TextField(
-            controller: emailController,
-            decoration: const InputDecoration(hintText: 'Email de l\'utilisateur'),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () async {
-                String email = emailController.text.trim();
-                if (email.isNotEmpty) {
-                  await _startNewConversation(email);
-                  Navigator.of(context).pop();
-                }
-              },
-              child: const Text('Commencer'),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   Future<void> _startNewConversation(String email) async {
@@ -150,12 +119,6 @@ class _TutorReceptPageState extends State<TutorReceptPage> {
         backgroundColor: const Color(0xFF5F67EA),
         elevation: 0,
         automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: _showNewConversationDialog,
-          ),
-        ],
       ),
       body: Column(
         children: [

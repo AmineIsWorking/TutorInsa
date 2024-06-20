@@ -4,7 +4,6 @@ import 'package:page_transition/page_transition.dart';
 import 'package:tutorinsa/pages/User/posts.dart';
 import 'package:tutorinsa/pages/User/rdv.dart';
 import 'package:tutorinsa/pages/User/recept.dart';
-import 'package:tutorinsa/pages/User/videos.dart';
 
 class NavigationBar2 extends StatefulWidget {
   final int selectedIndex;
@@ -40,12 +39,9 @@ class _NavigationBar2State extends State<NavigationBar2> {
         nextPage = const UserPage();
         break;
       case 1:
-        nextPage = const VideosPage();
-        break;
-      case 2:
         nextPage = const ReceptPage();
         break;
-      case 3:
+      case 2:
         nextPage = const RDVPage();
         break;
       default:
@@ -104,10 +100,6 @@ class _NavigationBar2State extends State<NavigationBar2> {
                   GButton(
                     icon: Icons.post_add_rounded,
                     text: 'Posts',
-                  ),
-                  GButton(
-                    icon: Icons.play_arrow_rounded,
-                    text: 'Vidéos',
                   ),
                   GButton(
                     icon: Icons.mail_rounded,

@@ -5,7 +5,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 //import 'package:tutorinsa/pages/User/createpost.dart';
 import 'package:tutorinsa/pages/Common/profilepage.dart';
-import 'package:animations/animations.dart';
 import 'package:tutorinsa/pages/Tutor/NavigationBar.dart';
 
 class TutorPostsPage extends StatefulWidget {
@@ -22,6 +21,7 @@ class _TutorPageState extends State<TutorPostsPage> {
   final List<String> _selectedTags = [];
   String? _userName;
   String? _userImage;
+  List<String> _userPreferences = [];
 
   final List<String> _tags = [
     'Mathématiques',
@@ -46,12 +46,18 @@ class _TutorPageState extends State<TutorPostsPage> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? userId = prefs.getString('userId');
     if (userId != null) {
-      DocumentSnapshot userSnapshot =
-      await FirebaseFirestore.instance.collection('Users').doc(userId).get();
+      DocumentSnapshot userSnapshot = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(userId)
+          .get();
       if (userSnapshot.exists) {
         setState(() {
           _userName = userSnapshot['Prénom'];
           _userImage = userSnapshot['Image'];
+          _userPreferences = List<String>.from(
+              (userSnapshot.data() as Map).containsKey('PreferredMatieres')
+                  ? userSnapshot['PreferredMatieres']
+                  : []);
         });
       }
     }
@@ -262,9 +268,23 @@ class _TutorPageState extends State<TutorPostsPage> {
           }).toList();
         }
 
+        var preferredDocs = documents.where((doc) {
+          final tags = List<String>.from(doc['Tags'] ?? []);
+          return _userPreferences.any((pref) => tags.contains(pref));
+        }).toList();
+
+        var otherDocs = documents.where((doc) {
+          final tags = List<String>.from(doc['Tags'] ?? []);
+          return !_userPreferences.any((pref) => tags.contains(pref));
+        }).toList();
+
+        preferredDocs.sort((a, b) => b['Timestamp'].toDate().compareTo(a['Timestamp'].toDate()));
+        // Combiner les deux listes, en affichant d'abord les posts préférés
+        documents = [...preferredDocs, ...otherDocs];
+
         return ListView.builder(
           shrinkWrap: true,
-          physics: NeverScrollableScrollPhysics(),
+          physics: const NeverScrollableScrollPhysics(),
           itemCount: documents.length,
           itemBuilder: (context, index) {
             final doc = documents[index];
@@ -372,8 +392,8 @@ class _TutorPageState extends State<TutorPostsPage> {
             right: 10,
             child: CircleAvatar(
               backgroundImage: userImage.isNotEmpty ? NetworkImage(userImage) : null,
-              child: userImage.isEmpty ? const Icon(Icons.person) : null,
               radius: 20,
+              child: userImage.isEmpty ? const Icon(Icons.person) : null,
             ),
           ),
           Positioned(

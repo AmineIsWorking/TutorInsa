@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tutorinsa/Services/notifi_service.dart';
 import 'package:tutorinsa/pages/Tutor/NavigationBar.dart';
 
 class TutorRDVPage extends StatefulWidget {
@@ -11,7 +12,7 @@ class TutorRDVPage extends StatefulWidget {
 }
 
 class _TutorRDVPageState extends State<TutorRDVPage> {
-  int _selectedIndex = 3;
+  int _selectedIndex = 2;
   String? userId;
   List<String> tutorSpecialities = [];
 
@@ -24,7 +25,6 @@ class _TutorRDVPageState extends State<TutorRDVPage> {
   void _loadUserIdAndSpecialities() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     userId = prefs.getString('userId');
-    print('le user est : $userId');
 
     if (userId != null) {
       var userDoc = await FirebaseFirestore.instance
@@ -34,7 +34,6 @@ class _TutorRDVPageState extends State<TutorRDVPage> {
 
       setState(() {
         tutorSpecialities = List<String>.from(userDoc['Matieres']);
-        print('tutorSpecialities: $tutorSpecialities');
       });
     }
   }
@@ -76,7 +75,6 @@ class _TutorRDVPageState extends State<TutorRDVPage> {
             itemBuilder: (context, index) {
               final request = appointmentRequests[index];
 
-              print('l\'id de request : ${request['InitiatedBy']}');
               return FutureBuilder<DocumentSnapshot>(
                   future: FirebaseFirestore.instance
                       .collection('Users')
@@ -88,7 +86,7 @@ class _TutorRDVPageState extends State<TutorRDVPage> {
                     }
 
                     final user = userSnapshot.data;
-                    final userName = user?['Nom'] ?? 'Nom inconnu';
+                    final userName = user?['Prénom'] ?? 'Prénom inconnu';
 
                     return Padding(
                       padding: const EdgeInsets.all(8.0),
@@ -120,7 +118,7 @@ class _TutorRDVPageState extends State<TutorRDVPage> {
                                     color: Colors.green, size: 30),
                                 onPressed: () {
                                   _acceptAppointment(request.id,
-                                      request.data() as Map<String, dynamic>);
+                                      request.data() as Map<String, dynamic>, user?['Prénom']);
                                 },
                               ),
                               IconButton(
@@ -145,6 +143,7 @@ class _TutorRDVPageState extends State<TutorRDVPage> {
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           FloatingActionButton.extended(
+            heroTag: 'accepted_rdv', // Unique heroTag
             onPressed: () {
               _navigateToAcceptedAppointments(context);
             },
@@ -157,6 +156,7 @@ class _TutorRDVPageState extends State<TutorRDVPage> {
           ),
           const SizedBox(height: 10),
           FloatingActionButton.extended(
+            heroTag: 'refused_rdv', // Unique heroTag
             onPressed: () {
               _navigateToRefusedAppointments(context);
             },
@@ -207,12 +207,13 @@ class _TutorRDVPageState extends State<TutorRDVPage> {
   }
 
   void _acceptAppointment(
-      String appointmentId, Map<String, dynamic> appointmentData) {
-    FirebaseFirestore.instance.collection('Rendezvousacceptes').add({
+      String appointmentId, Map<String, dynamic> appointmentData, String? studentName) async {
+    await FirebaseFirestore.instance.collection('Rendezvousacceptes').add({
       ...appointmentData,
-      'AcceptedBy': userId // Ajoutez l'ID du tuteur qui accepte le rendez-vous
+      'AcceptedBy': userId, // Ajoutez l'ID du tuteur qui accepte le rendez-vous
     });
-    FirebaseFirestore.instance
+
+    await FirebaseFirestore.instance
         .collection('Rendezvous')
         .doc(appointmentId)
         .delete();
@@ -330,7 +331,7 @@ class AcceptedAppointmentsPage extends StatelessWidget {
                     }
 
                     final user = userSnapshot.data;
-                    final userName = user?['Nom'] ?? 'Nom inconnu';
+                    final userName = user?['Prénom'] ?? 'Prénom inconnu';
 
                     return Padding(
                       padding: const EdgeInsets.all(8.0),
@@ -415,7 +416,7 @@ class RefusedAppointmentsPage extends StatelessWidget {
                     }
 
                     final user = userSnapshot.data;
-                    final userName = user?['Nom'] ?? 'Nom inconnu';
+                    final userName = user?['Prénom'] ?? 'Prénom inconnu';
 
                     return Padding(
                       padding: const EdgeInsets.all(8.0),
@@ -450,4 +451,3 @@ class RefusedAppointmentsPage extends StatelessWidget {
     );
   }
 }
-

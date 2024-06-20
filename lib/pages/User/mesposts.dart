@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MesPosts extends StatefulWidget {
-  const MesPosts({Key? key}) : super(key: key);
+  const MesPosts({super.key});
 
   @override
   _MesPostsState createState() => _MesPostsState();
@@ -162,17 +162,17 @@ class _MesPostsState extends State<MesPosts> {
                           ),
                           ElevatedButton(
                             onPressed: () => _confirmDelete(docId),
-                            child: const Text('Supprimer'),
                             style: ButtonStyle(
-                              backgroundColor: MaterialStateProperty.all<Color>(Colors.white), // Fond blanc
-                              shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                              backgroundColor: WidgetStateProperty.all<Color>(Colors.white), // Fond blanc
+                              shape: WidgetStateProperty.all<RoundedRectangleBorder>(
                                 RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(18.0),
-                                  side: const BorderSide(color: const Color(0xFF5F67EA)), // Contour violet
+                                  side: const BorderSide(color: Color(0xFF5F67EA)), // Contour violet
                                 ),
                               ),
-                              foregroundColor: MaterialStateProperty.all<Color>(const Color(0xFF5F67EA)), // Texte en violet
+                              foregroundColor: WidgetStateProperty.all<Color>(const Color(0xFF5F67EA)), // Texte en violet
                             ),
+                            child: const Text('Supprimer'),
                           ),
                         ],
                       ),

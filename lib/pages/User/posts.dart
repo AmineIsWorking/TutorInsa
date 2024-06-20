@@ -7,10 +7,8 @@ import 'package:tutorinsa/pages/Common/postdetailpage.dart';
 import 'package:tutorinsa/pages/User/createpost.dart';
 import 'package:tutorinsa/pages/Common/profilepage.dart';
 import 'package:tutorinsa/pages/User/mesposts.dart';
-import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'package:animations/animations.dart';
 import 'package:tutorinsa/pages/Common/navigation_bar.dart';
-
 
 class UserPage extends StatefulWidget {
   const UserPage({super.key});
@@ -26,6 +24,7 @@ class _UserPageState extends State<UserPage> {
   final List<String> _selectedTags = [];
   String? _userName;
   String? _userImage;
+  List<String> _userPreferences = [];
 
   final List<String> _tags = [
     'Mathématiques',
@@ -58,6 +57,10 @@ class _UserPageState extends State<UserPage> {
         setState(() {
           _userName = userSnapshot['Prénom'];
           _userImage = userSnapshot['Image'];
+          _userPreferences = List<String>.from(
+              (userSnapshot.data() as Map).containsKey('PreferredMatieres')
+                  ? userSnapshot['PreferredMatieres']
+                  : []);
         });
       }
     }
@@ -143,69 +146,6 @@ class _UserPageState extends State<UserPage> {
             body: SingleChildScrollView(
               child: Column(
                 children: [
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const LiveVideo(),
-                        ),
-                      );
-                    },
-                    child: Stack(
-                      children: <Widget>[
-                        ClipRect(
-                          child: Align(
-                            alignment: Alignment.center,
-                            heightFactor: 0.7,
-                            child: RawImage(
-                              image: snapshot.data,
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          bottom: 5,
-                          left: 10,
-                          child: Container(
-                            padding: const EdgeInsets.all(
-                                5), // Ajoutez du padding pour donner de l'espace autour du texte et du bouton
-                            decoration: BoxDecoration(
-                              color: Colors
-                                  .white, // Définissez la couleur de la boîte en blanc
-                              borderRadius: BorderRadius.circular(
-                                  20), // Ajoutez un arrondi à la boîte
-                              border: Border.all(
-                                color: ui.Color.fromARGB(255, 0, 0,
-                                    0), // Définissez la couleur de la bordure en violet
-                                width: 2, // Définissez la largeur de la bordure
-                              ),
-                            ),
-                            child: Row(
-                              children: <Widget>[
-                                Container(
-                                  width: 10,
-                                  height: 10,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.red,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 5),
-                                const Text(
-                                  'En Live',
-                                  style: TextStyle(
-                                    color: Colors
-                                        .black, // Changez la couleur du texte en noir pour qu'il soit visible sur le fond blanc
-                                    fontSize: 15,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                   Padding(
                     padding: const EdgeInsets.all(10.0),
                     child: Row(
@@ -332,7 +272,9 @@ class _UserPageState extends State<UserPage> {
 
   Widget _buildPostsList() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('Posts').snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('Posts')
+          .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
@@ -368,6 +310,21 @@ class _UserPageState extends State<UserPage> {
           }).toList();
         }
 
+        // Séparer les posts selon les préférences de l'utilisateur
+        var preferredDocs = documents.where((doc) {
+          final tags = List<String>.from(doc['Tags'] ?? []);
+          return _userPreferences.any((pref) => tags.contains(pref));
+        }).toList();
+
+        var otherDocs = documents.where((doc) {
+          final tags = List<String>.from(doc['Tags'] ?? []);
+          return !_userPreferences.any((pref) => tags.contains(pref));
+        }).toList();
+
+        preferredDocs.sort((a, b) => b['Timestamp'].toDate().compareTo(a['Timestamp'].toDate()));
+        // Combiner les deux listes, en affichant d'abord les posts préférés
+        documents = [...preferredDocs, ...otherDocs];
+
         return ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -401,8 +358,6 @@ class _UserPageState extends State<UserPage> {
                 final name = userData['Prénom'] ?? '';
                 final annee = userData['Annee'] ?? '';
                 final docId = doc.id;
-
-                print(docId.toString());
 
                 return _buildPost(
                   docId.toString(),
@@ -520,8 +475,8 @@ class _UserPageState extends State<UserPage> {
               child: CircleAvatar(
                 backgroundImage:
                     userImage.isNotEmpty ? NetworkImage(userImage) : null,
-                child: userImage.isEmpty ? const Icon(Icons.person) : null,
                 radius: 20,
+                child: userImage.isEmpty ? const Icon(Icons.person) : null,
               ),
             ),
             Positioned(
@@ -543,30 +498,6 @@ class _UserPageState extends State<UserPage> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class LiveVideo extends StatelessWidget {
-  const LiveVideo({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Live Video'),
-      ),
-      body: YoutubePlayer(
-        controller: YoutubePlayerController(
-          initialVideoId: 'N_WgBU3S9W8',
-          flags: const YoutubePlayerFlags(
-            autoPlay: true,
-            mute: false,
-          ),
-        ),
-        showVideoProgressIndicator: true,
-        progressIndicatorColor: Colors.blueAccent,
       ),
     );
   }
