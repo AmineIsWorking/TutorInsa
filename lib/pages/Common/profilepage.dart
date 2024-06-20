@@ -30,6 +30,7 @@ class _ProfilePageState extends State<ProfilePage> {
   String imageUrl = '';
   String password = '';
   bool isTutor = true; // Toggle for tutor/student
+  List<String> matieres = []; // List to hold matieres for tutor
 
   bool isEditingName = false;
   bool isEditingLastName = false;
@@ -64,6 +65,7 @@ class _ProfilePageState extends State<ProfilePage> {
         isLoading = false;
         password = doc['Password'] ?? '';
         isTutor = doc['isTuteur'] ?? true; // Fetch the isTuteur field
+        matieres = List<String>.from(doc['Matieres'] ?? []); // Fetch the Matieres field
       });
     }
   }
@@ -78,6 +80,7 @@ class _ProfilePageState extends State<ProfilePage> {
       'Image': imageUrl,
       'Password': password,
       'isTuteur': isTutor, // Update the isTuteur field
+      'Matieres': matieres, // Update the Matieres field
     });
   }
 
@@ -137,6 +140,84 @@ class _ProfilePageState extends State<ProfilePage> {
         MaterialPageRoute(builder: (context) => const UserPage()),
       );
     }
+  }
+
+  void _addMatiere(String matiere) {
+    setState(() {
+      if (matiere.isNotEmpty) {
+        matieres.add(matiere);
+        _updateUserProfile();
+      }
+    });
+  }
+
+  void _removeMatiere(String matiere) {
+    setState(() {
+      matieres.remove(matiere);
+      _updateUserProfile();
+    });
+  }
+
+  Widget _buildMatieresField() {
+    if (!isTutor) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Matieres',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        ...matieres.map((matiere) => ListTile(
+          title: Text(matiere),
+          trailing: IconButton(
+            icon: const Icon(Icons.delete, color: Colors.red),
+            onPressed: () {
+              _removeMatiere(matiere);
+            },
+          ),
+        )),
+        TextButton(
+          onPressed: () {
+            _showAddMatiereDialog();
+          },
+          child: const Text('Ajouter Matiere', style: TextStyle(color: Colors.blue)),
+        ),
+        const Divider(),
+      ],
+    );
+  }
+
+  void _showAddMatiereDialog() {
+    TextEditingController matiereController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Ajouter Matiere'),
+          content: TextField(
+            controller: matiereController,
+            decoration: const InputDecoration(hintText: 'Entrer une matiere'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Annuler'),
+            ),
+            TextButton(
+              onPressed: () {
+                _addMatiere(matiereController.text.trim());
+                Navigator.of(context).pop();
+              },
+              child: const Text('Ajouter'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -265,22 +346,22 @@ class _ProfilePageState extends State<ProfilePage> {
                   });
                 }, isPassword: true),
                 const SizedBox(height: 24),
-                if (isTutor != null) // Display the toggle only if isTutor is not null
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Tuteur',
-                        style: TextStyle(fontSize: 16),
-                      ),
-                      Switch(
-                        value: isTutor,
-                        onChanged: (value) {
-                          _toggleRole();
-                        },
-                      ),
-                    ],
-                  ),
+                _buildMatieresField(),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Tuteur',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    Switch(
+                      value: isTutor,
+                      onChanged: (value) {
+                        _toggleRole();
+                      },
+                    ),
+                  ],
+                ),
                 const Divider(),
                 ListTile(
                   title: const Text('Déconnexion'),
