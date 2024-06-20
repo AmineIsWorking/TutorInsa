@@ -80,12 +80,15 @@ class _RDVPageState extends State<createRdv> {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Rendez-vous confirmé'),
+          title: const Text('Demande de rendez-vous confirmé'),
           content: Text(
               'Vous avez choisi ${selectedMatiere!} le ${formattedDate!} à ${formattedTime!}.'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () {
+                Navigator.of(context).pop(); // Ferme la boîte de dialogue
+                Navigator.of(context).pop(); // Ferme la page de création de rendez-vous
+              },
               child: const Text('OK'),
             ),
           ],
@@ -155,7 +158,7 @@ class _RDVPageState extends State<createRdv> {
                 onPressed: selectedMatiere != null && selectedDate != null && selectedTime != null
                     ? _confirmRdv
                     : null,
-                child: const Text('Confirmer le rendez-vous'),
+                child: const Text('Demander le rendez-vous'),
               ),
             ),
           ],
@@ -164,5 +167,3 @@ class _RDVPageState extends State<createRdv> {
     );
   }
 }
-
-
