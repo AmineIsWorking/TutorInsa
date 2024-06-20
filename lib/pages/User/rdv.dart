@@ -15,27 +15,27 @@ class RDVPage extends StatefulWidget {
 class _RDVPageState extends State<RDVPage> {
   List<Map<String, dynamic>> _upcomingRDVs = [];
   List<Map<String, dynamic>> _pastRDVs = [];
+  List<Map<String, dynamic>> _pendingRDVs = [];
   Map<String, Map<String, List<Map<String, dynamic>>>> _usersBySubjectsAndYear = {};
   int _selectedIndex = 3; // Set the default selected index to RDV
 
   @override
   void initState() {
     super.initState();
-    _fetchRendezVous();
+    _fetchAcceptedRendezVous();
+    _fetchPendingRendezVous();
     _fetchConnectedUsers();
   }
 
-  Future<void> _fetchRendezVous() async {
-    // Récupérez l'identifiant de l'utilisateur à partir de SharedPreferences
+  Future<void> _fetchAcceptedRendezVous() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? userId = prefs.getString('userId');
 
     if (userId == null) {
-      // Gérez l'erreur si l'utilisateur n'est pas connecté ou si l'ID utilisateur est manquant
       return;
     }
 
-    CollectionReference rendezVousRef = FirebaseFirestore.instance.collection('Rendezvous');
+    CollectionReference rendezVousRef = FirebaseFirestore.instance.collection('Rendezvousacceptes');
     QuerySnapshot querySnapshot = await rendezVousRef.where('InitiatedBy', isEqualTo: userId).get();
 
     final now = DateTime.now();
@@ -45,13 +45,7 @@ class _RDVPageState extends State<RDVPage> {
     for (var doc in querySnapshot.docs) {
       Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
       DateTime rdvDate = DateTime.parse(data['Date']);
-      data['id'] = doc.id; // Add document ID to the data
-
-      // Fetch user who initiated the RDV
-      if (data['InitiatedBy'] != null) {
-        DocumentSnapshot userSnapshot = await FirebaseFirestore.instance.collection('Users').doc(data['InitiatedBy']).get();
-        data['initiatedByUser'] = userSnapshot.data();
-      }
+      data['id'] = doc.id;
 
       if (rdvDate.isAfter(now)) {
         upcomingRDVs.add(data);
@@ -66,6 +60,30 @@ class _RDVPageState extends State<RDVPage> {
     });
   }
 
+  Future<void> _fetchPendingRendezVous() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? userId = prefs.getString('userId');
+
+    if (userId == null) {
+      return;
+    }
+
+    CollectionReference rendezVousRef = FirebaseFirestore.instance.collection('Rendezvous');
+    QuerySnapshot querySnapshot = await rendezVousRef.where('InitiatedBy', isEqualTo: userId).get();
+
+    final pendingRDVs = <Map<String, dynamic>>[];
+
+    for (var doc in querySnapshot.docs) {
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+      data['id'] = doc.id;
+      pendingRDVs.add(data);
+    }
+
+    setState(() {
+      _pendingRDVs = pendingRDVs;
+    });
+  }
+
   Future<void> _fetchConnectedUsers() async {
     CollectionReference usersRef = FirebaseFirestore.instance.collection('Users');
     QuerySnapshot querySnapshot = await usersRef
@@ -77,7 +95,7 @@ class _RDVPageState extends State<RDVPage> {
 
     for (var doc in querySnapshot.docs) {
       Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-      data['id'] = doc.id; // Add document ID to the data
+      data['id'] = doc.id;
       List<String> subjects = List<String>.from(data['Matieres'] ?? []);
       String year = data['Annee'] ?? 'Inconnue';
 
@@ -100,7 +118,7 @@ class _RDVPageState extends State<RDVPage> {
   Widget _buildRendezVousList(List<Map<String, dynamic>> rdvs) {
     if (rdvs.isEmpty) {
       return const Center(
-        child: Text("Vous n'avez pas de rendez-vous"),
+        child: Text("Vous n'avez pas de rendez-vous en attente"),
       );
     }
 
@@ -110,13 +128,10 @@ class _RDVPageState extends State<RDVPage> {
         final rdv = rdvs[index];
         final rdvDate = DateTime.parse(rdv['Date']);
         final rdvTime = rdv['Time'];
-        final initiator = rdv['initiatedByUser'] != null
-            ? '${rdv['initiatedByUser']['Nom']} ${rdv['initiatedByUser']['Prénom']}'
-            : 'Inconnu';
 
         return ListTile(
           title: Text(rdv['Matiere'] ?? 'No Description'),
-          subtitle: Text('Date: ${rdvDate.toLocal()} \nHeure: $rdvTime \nInitiated by: $initiator'),
+          subtitle: Text('Date: ${rdvDate.toLocal()} \nHeure: $rdvTime'),
         );
       },
     );
@@ -128,31 +143,19 @@ class _RDVPageState extends State<RDVPage> {
         child: Text("Aucun utilisateur connecté"),
       );
     }
-  
+
     return ListView(
       padding: const EdgeInsets.all(10.0),
       children: _usersBySubjectsAndYear.entries.map((subjectEntry) {
         String subject = subjectEntry.key;
         Map<String, List<Map<String, dynamic>>> years = subjectEntry.value;
-  
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  subject,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                ...years.entries.map((yearEntry) {
-                  String year = yearEntry.key;
-                  return Text(
-                    '$year',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  );
-                }).toList(),
-              ],
+            Text(
+              subject,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const Divider(),
             ...years.entries.expand((yearEntry) {
@@ -247,14 +250,12 @@ class _RDVPageState extends State<RDVPage> {
     String? _currentUserId = prefs.getString('userId');
 
     if (_currentUserId == null) {
-      // Handle the case where the user ID is not found
       return;
     }
 
     String userId = user['id'];
     String conversationId = '';
 
-    // Check if a conversation already exists
     QuerySnapshot conversationSnapshot = await FirebaseFirestore.instance
         .collection('conversations')
         .where('participants', arrayContains: _currentUserId)
@@ -269,7 +270,6 @@ class _RDVPageState extends State<RDVPage> {
     }
 
     if (conversationId.isEmpty) {
-      // Create a new conversation
       DocumentReference conversationRef = await FirebaseFirestore.instance.collection('conversations').add({
         'participants': [_currentUserId, userId],
         'lastMessage': message,
@@ -277,21 +277,18 @@ class _RDVPageState extends State<RDVPage> {
       });
       conversationId = conversationRef.id;
     } else {
-      // Update the existing conversation with the new message
       await FirebaseFirestore.instance.collection('conversations').doc(conversationId).update({
         'lastMessage': message,
         'timestamp': FieldValue.serverTimestamp(),
       });
     }
 
-    // Add the message to the messages subcollection
     await FirebaseFirestore.instance.collection('conversations').doc(conversationId).collection('messages').add({
       'text': message,
       'senderId': _currentUserId,
       'timestamp': FieldValue.serverTimestamp(),
     });
 
-    // Navigate to ChatPage
     Navigator.push(
       context,
       PageRouteBuilder(
@@ -349,7 +346,7 @@ class _RDVPageState extends State<RDVPage> {
         child: Column(
           children: <Widget>[
             Container(
-              height: 70, // Set the height to your preference
+              height: 70,
               color: const Color(0xFF5F67EA),
               child: const Align(
                 alignment: Alignment.center,
@@ -369,11 +366,12 @@ class _RDVPageState extends State<RDVPage> {
         ),
       ),
       body: DefaultTabController(
-        length: 2,
+        length: 3,
         child: Column(
           children: [
             const TabBar(
               tabs: [
+                Tab(text: 'En attente'),
                 Tab(text: 'À venir'),
                 Tab(text: 'Passés'),
               ],
@@ -381,6 +379,7 @@ class _RDVPageState extends State<RDVPage> {
             Expanded(
               child: TabBarView(
                 children: [
+                  _buildRendezVousList(_pendingRDVs),
                   _buildRendezVousList(_upcomingRDVs),
                   _buildRendezVousList(_pastRDVs),
                 ],
@@ -395,7 +394,8 @@ class _RDVPageState extends State<RDVPage> {
             context,
             MaterialPageRoute(builder: (context) => const createRdv()),
           ).then((value) {
-            _fetchRendezVous(); // Rafraîchit la liste des rendez-vous après la création d'un nouveau RDV
+            _fetchAcceptedRendezVous();
+            _fetchPendingRendezVous();
           });
         },
         backgroundColor: const Color(0xFF5F67EA),
@@ -409,4 +409,3 @@ class _RDVPageState extends State<RDVPage> {
     );
   }
 }
-
