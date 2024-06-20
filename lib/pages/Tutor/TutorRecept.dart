@@ -14,7 +14,6 @@ class TutorReceptPage extends StatefulWidget {
 class _TutorReceptPageState extends State<TutorReceptPage> {
   int _selectedIndex = 1;
   String? _currentTutorId;
-  String? _currentTutorEmail;
 
   @override
   void initState() {
@@ -26,7 +25,7 @@ class _TutorReceptPageState extends State<TutorReceptPage> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
   setState(() {
     _currentTutorId = prefs.getString('userId'); // Use userId instead of email
-    _currentTutorEmail = prefs.getString('userEmail'); // Get user email
+// Get user email
   });
 }
 
