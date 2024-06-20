@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tutorinsa/pages/Tutor/NavigationBar.dart';
 
 class TutorRDVPage extends StatefulWidget {
@@ -10,26 +12,32 @@ class TutorRDVPage extends StatefulWidget {
 
 class _TutorRDVPageState extends State<TutorRDVPage> {
   int _selectedIndex = 3;
+  String? userId;
+  List<String> tutorSpecialities = [];
 
-  List<Map<String, dynamic>> appointmentRequests = [
-    {
-      'firstName': 'Ludovick',
-      'lastName': 'Lainé',
-      'level': '3A',
-      'subject': 'Mathématiques',
-      'dateTime': DateTime(2024, 6, 20, 14, 30),
-    },
-    {
-      'firstName': 'Emile',
-      'lastName': 'Peltier',
-      'level': '3A',
-      'subject': 'Informatique',
-      'dateTime': DateTime(2024, 6, 22, 10, 0),
-    },
-    // Ajouter d'autres demandes de rendez-vous ici si nécessaire
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadUserIdAndSpecialities();
+  }
 
-  List<Map<String, dynamic>> acceptedAppointments = [];
+  void _loadUserIdAndSpecialities() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    userId = prefs.getString('userId');
+    print('le user est : $userId');
+
+    if (userId != null) {
+      var userDoc = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(userId)
+          .get();
+
+      setState(() {
+        tutorSpecialities = List<String>.from(userDoc['Matieres']);
+        print('tutorSpecialities: $tutorSpecialities');
+      });
+    }
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -48,71 +56,118 @@ class _TutorRDVPageState extends State<TutorRDVPage> {
           fontWeight: FontWeight.bold,
         ),
         backgroundColor: const Color(0xFF5F67EA),
-        automaticallyImplyLeading: false, // Masquer le bouton de retour
+        automaticallyImplyLeading: false,
       ),
-      body: ListView.builder(
-        itemCount: appointmentRequests.length,
-        itemBuilder: (context, index) {
-          final request = appointmentRequests[index];
-          return Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: ListTile(
-                title: Text('${request['firstName']} ${request['lastName']}'),
-                titleTextStyle: const TextStyle(
-                  color: Colors.black,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Niveau: ${request['level']}'),
-                    Text('Matière: ${request['subject']}'),
-                    Text(
-                      'Date: ${request['dateTime'].day}/${request['dateTime'].month}/${request['dateTime'].year}',
-                    ),
-                    Text(
-                      'Heure: ${request['dateTime'].hour}:${request['dateTime'].minute}',
-                    ),
-                  ],
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.check_circle, color: Colors.green, size: 30),
-                      onPressed: () {
-                        _acceptAppointment(index);
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.cancel, color: Colors.red, size: 30),
-                      onPressed: () {
-                        _showRefuseConfirmationDialog(index);
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('Rendezvous').snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final appointmentRequests = snapshot.data!.docs.where((request) {
+            final requestData = request.data() as Map<String, dynamic>;
+            final matiere = requestData['Matiere'];
+            return tutorSpecialities.contains(matiere);
+          }).toList();
+
+          return ListView.builder(
+            itemCount: appointmentRequests.length,
+            itemBuilder: (context, index) {
+              final request = appointmentRequests[index];
+
+              print('l\'id de request : ${request['InitiatedBy']}');
+              return FutureBuilder<DocumentSnapshot>(
+                  future: FirebaseFirestore.instance
+                      .collection('Users')
+                      .doc(request['InitiatedBy'])
+                      .get(),
+                  builder: (context, userSnapshot) {
+                    if (!userSnapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    final user = userSnapshot.data;
+                    final userName = user?['Nom'] ?? 'Nom inconnu';
+
+                    return Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: ListTile(
+                          title: Text(userName),
+                          titleTextStyle: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Matière: ${request['Matiere']}'),
+                              Text('Date: ${request['Date']}'),
+                              Text('Heure: ${request['Time']}'),
+                            ],
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.check_circle,
+                                    color: Colors.green, size: 30),
+                                onPressed: () {
+                                  _acceptAppointment(request.id,
+                                      request.data() as Map<String, dynamic>);
+                                },
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.cancel,
+                                    color: Colors.red, size: 30),
+                                onPressed: () {
+                                  _showRefuseConfirmationDialog(request.id,
+                                      request.data() as Map<String, dynamic>);
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  });
+            },
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          _navigateToAcceptedAppointments(context);
-        },
-        icon: const Icon(Icons.event_available),
-        label: const Text(
-          'Voir les RDV acceptés',
-          style: TextStyle(color: Colors.white),
-        ),
-        backgroundColor: const Color(0xFF5F67EA),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton.extended(
+            onPressed: () {
+              _navigateToAcceptedAppointments(context);
+            },
+            icon: const Icon(Icons.event_available),
+            label: const Text(
+              'Voir les RDV acceptés',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: const Color(0xFF5F67EA),
+          ),
+          const SizedBox(height: 10),
+          FloatingActionButton.extended(
+            onPressed: () {
+              _navigateToRefusedAppointments(context);
+            },
+            icon: const Icon(Icons.cancel),
+            label: const Text(
+              'Voir les RDV refusés',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: const Color(0xFF5F67EA),
+          ),
+        ],
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       bottomNavigationBar: NavigationBar2(
@@ -122,27 +177,27 @@ class _TutorRDVPageState extends State<TutorRDVPage> {
     );
   }
 
-  void _showRefuseConfirmationDialog(int index) {
+  void _showRefuseConfirmationDialog(
+      String appointmentId, Map<String, dynamic> appointmentData) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Refuser le rendez-vous'),
-          content: const Text('Êtes-vous sûr de vouloir refuser ce rendez-vous ?'),
+          content:
+              const Text('Êtes-vous sûr de vouloir refuser ce rendez-vous ?'),
           actions: <Widget>[
             TextButton(
               child: const Text('Annuler'),
               onPressed: () {
-                Navigator.of(context).pop(); // Ferme la boîte de dialogue
+                Navigator.of(context).pop();
               },
             ),
             TextButton(
               child: const Text('Je suis sûr'),
               onPressed: () {
-                setState(() {
-                  appointmentRequests.removeAt(index);
-                });
-                Navigator.of(context).pop(); // Ferme la boîte de dialogue après suppression
+                _refuseAppointment(appointmentId, appointmentData);
+                Navigator.of(context).pop();
               },
             ),
           ],
@@ -151,37 +206,84 @@ class _TutorRDVPageState extends State<TutorRDVPage> {
     );
   }
 
-  void _acceptAppointment(int index) {
-    setState(() {
-      acceptedAppointments.add(appointmentRequests[index]);
-      appointmentRequests.removeAt(index);
+  void _acceptAppointment(
+      String appointmentId, Map<String, dynamic> appointmentData) {
+    FirebaseFirestore.instance.collection('Rendezvousacceptes').add({
+      ...appointmentData,
+      'AcceptedBy': userId // Ajoutez l'ID du tuteur qui accepte le rendez-vous
     });
+    FirebaseFirestore.instance
+        .collection('Rendezvous')
+        .doc(appointmentId)
+        .delete();
   }
 
-  void _navigateToAcceptedAppointments(BuildContext context) {
-    Navigator.of(context).push(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => AcceptedAppointmentsPage(acceptedAppointments),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          var begin = Offset.zero;
-          var end = Offset.zero;
-          var curve = Curves.ease;
-          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+  void _refuseAppointment(
+      String appointmentId, Map<String, dynamic> appointmentData) {
+    FirebaseFirestore.instance.collection('Rendezvousrefuses').add({
+      ...appointmentData,
+      'RefusedBy': userId // Ajoutez l'ID du tuteur qui refuse le rendez-vous
+    });
+    FirebaseFirestore.instance
+        .collection('Rendezvous')
+        .doc(appointmentId)
+        .delete();
+  }
 
-          return SlideTransition(
-            position: animation.drive(tween),
-            child: child,
-          );
-        },
-      ),
-    );
+  void _navigateToAcceptedAppointments(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final currentUserId = prefs.getString('userId');
+    if (currentUserId != null) {
+      Navigator.of(context).push(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              AcceptedAppointmentsPage(userId: currentUserId),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            var begin = Offset.zero;
+            var end = Offset.zero;
+            var curve = Curves.ease;
+            var tween =
+                Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+
+            return SlideTransition(
+              position: animation.drive(tween),
+              child: child,
+            );
+          },
+        ),
+      );
+    }
+  }
+
+  void _navigateToRefusedAppointments(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final currentUserId = prefs.getString('userId');
+    if (currentUserId != null) {
+      Navigator.of(context).push(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              RefusedAppointmentsPage(userId: currentUserId),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            var begin = Offset.zero;
+            var end = Offset.zero;
+            var curve = Curves.ease;
+            var tween =
+                Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+
+            return SlideTransition(
+              position: animation.drive(tween),
+              child: child,
+            );
+          },
+        ),
+      );
+    }
   }
 }
 
 class AcceptedAppointmentsPage extends StatelessWidget {
-  final List<Map<String, dynamic>> acceptedAppointments;
-
-  const AcceptedAppointmentsPage(this.acceptedAppointments, {super.key});
+  final String userId;
+  const AcceptedAppointmentsPage({super.key, required this.userId});
 
   @override
   Widget build(BuildContext context) {
@@ -197,46 +299,155 @@ class AcceptedAppointmentsPage extends StatelessWidget {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            Navigator.of(context).pop(); // Retour à la page précédente
+            Navigator.of(context).pop();
           },
         ),
       ),
-      body: ListView.builder(
-        itemCount: acceptedAppointments.length,
-        itemBuilder: (context, index) {
-          final appointment = acceptedAppointments[index];
-          return Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: ListTile(
-                title: Text('${appointment['firstName']} ${appointment['lastName']}'),
-                titleTextStyle: const TextStyle(
-                  color: Colors.black,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Niveau: ${appointment['level']}'),
-                    Text('Matière: ${appointment['subject']}'),
-                    Text(
-                      'Date: ${appointment['dateTime'].day}/${appointment['dateTime'].month}/${appointment['dateTime'].year}',
-                    ),
-                    Text(
-                      'Heure: ${appointment['dateTime'].hour}:${appointment['dateTime'].minute}',
-                    ),
-                  ],
-                ),
-              ),
-            ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('Rendezvousacceptes')
+            .where('AcceptedBy', isEqualTo: userId)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final acceptedAppointments = snapshot.data!.docs;
+
+          return ListView.builder(
+            itemCount: acceptedAppointments.length,
+            itemBuilder: (context, index) {
+              final appointment = acceptedAppointments[index];
+              return FutureBuilder<DocumentSnapshot>(
+                  future: FirebaseFirestore.instance
+                      .collection('Users')
+                      .doc(appointment['InitiatedBy'])
+                      .get(),
+                  builder: (context, userSnapshot) {
+                    if (!userSnapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    final user = userSnapshot.data;
+                    final userName = user?['Nom'] ?? 'Nom inconnu';
+
+                    return Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: ListTile(
+                          title: Text(userName),
+                          titleTextStyle: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Matière: ${appointment['Matiere']}'),
+                              Text('Date: ${appointment['Date']}'),
+                              Text('Heure: ${appointment['Time']}'),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  });
+            },
           );
         },
       ),
     );
   }
 }
+
+class RefusedAppointmentsPage extends StatelessWidget {
+  final String userId;
+  const RefusedAppointmentsPage({super.key, required this.userId});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Rendez-vous refusés'),
+        titleTextStyle: const TextStyle(
+          color: Colors.white,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+        backgroundColor: const Color(0xFF5F67EA),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+        ),
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('Rendezvousrefuses')
+            .where('RefusedBy', isEqualTo: userId)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final refusedAppointments = snapshot.data!.docs;
+
+          return ListView.builder(
+            itemCount: refusedAppointments.length,
+            itemBuilder: (context, index) {
+              final appointment = refusedAppointments[index];
+              return FutureBuilder<DocumentSnapshot>(
+                  future: FirebaseFirestore.instance
+                      .collection('Users')
+                      .doc(appointment['InitiatedBy'])
+                      .get(),
+                  builder: (context, userSnapshot) {
+                    if (!userSnapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    final user = userSnapshot.data;
+                    final userName = user?['Nom'] ?? 'Nom inconnu';
+
+                    return Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: ListTile(
+                          title: Text(userName),
+                          titleTextStyle: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Matière: ${appointment['Matiere']}'),
+                              Text('Date: ${appointment['Date']}'),
+                              Text('Heure: ${appointment['Time']}'),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  });
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+

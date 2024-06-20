@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tutorinsa/pages/Common/postdetailpage.dart';
 import 'package:tutorinsa/pages/User/createpost.dart';
 import 'package:tutorinsa/pages/Common/profilepage.dart';
 import 'package:tutorinsa/pages/User/mesposts.dart';
@@ -48,8 +49,10 @@ class _UserPageState extends State<UserPage> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? userId = prefs.getString('userId');
     if (userId != null) {
-      DocumentSnapshot userSnapshot =
-          await FirebaseFirestore.instance.collection('Users').doc(userId).get();
+      DocumentSnapshot userSnapshot = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(userId)
+          .get();
       if (userSnapshot.exists) {
         setState(() {
           _userName = userSnapshot['Prénom'];
@@ -107,17 +110,17 @@ class _UserPageState extends State<UserPage> {
               ),
               actions: <Widget>[
                 IconButton(
-                      icon: const Icon(Icons.inbox, color: Colors.white),
-                      tooltip: 'Mes Posts',
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const MesPosts(),
-                          ),
-                        );
-                      },
-                    ),
+                  icon: const Icon(Icons.inbox, color: Colors.white),
+                  tooltip: 'Mes Posts',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const MesPosts(),
+                      ),
+                    );
+                  },
+                ),
                 IconButton(
                   icon: _userImage != null
                       ? CircleAvatar(
@@ -163,12 +166,16 @@ class _UserPageState extends State<UserPage> {
                           bottom: 5,
                           left: 10,
                           child: Container(
-                            padding: const EdgeInsets.all(5), // Ajoutez du padding pour donner de l'espace autour du texte et du bouton
+                            padding: const EdgeInsets.all(
+                                5), // Ajoutez du padding pour donner de l'espace autour du texte et du bouton
                             decoration: BoxDecoration(
-                              color: Colors.white, // Définissez la couleur de la boîte en blanc
-                              borderRadius: BorderRadius.circular(20), // Ajoutez un arrondi à la boîte
+                              color: Colors
+                                  .white, // Définissez la couleur de la boîte en blanc
+                              borderRadius: BorderRadius.circular(
+                                  20), // Ajoutez un arrondi à la boîte
                               border: Border.all(
-                                color: ui.Color.fromARGB(255, 0, 0, 0), // Définissez la couleur de la bordure en violet
+                                color: ui.Color.fromARGB(255, 0, 0,
+                                    0), // Définissez la couleur de la bordure en violet
                                 width: 2, // Définissez la largeur de la bordure
                               ),
                             ),
@@ -186,7 +193,8 @@ class _UserPageState extends State<UserPage> {
                                 const Text(
                                   'En Live',
                                   style: TextStyle(
-                                    color: Colors.black, // Changez la couleur du texte en noir pour qu'il soit visible sur le fond blanc
+                                    color: Colors
+                                        .black, // Changez la couleur du texte en noir pour qu'il soit visible sur le fond blanc
                                     fontSize: 15,
                                   ),
                                 ),
@@ -321,7 +329,7 @@ class _UserPageState extends State<UserPage> {
     );
   }
 
- Widget _buildPostsList() {
+  Widget _buildPostsList() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('Posts').snapshots(),
       builder: (context, snapshot) {
@@ -351,7 +359,8 @@ class _UserPageState extends State<UserPage> {
                 }
               }
             } else {
-              tagsMatch = true; // Si aucun tag n'est sélectionné, ignorer cette vérification
+              tagsMatch =
+                  true; // Si aucun tag n'est sélectionné, ignorer cette vérification
             }
 
             return titleMatches && tagsMatch;
@@ -368,28 +377,41 @@ class _UserPageState extends State<UserPage> {
             final content = doc['Contenu'] ?? 'Contenu indisponible';
             final postImagePath = doc['Image'] ?? '';
             final tags = List<String>.from(doc['Tags'] ?? []);
-            final publishedBy = doc['PublishedBy'] ?? ''; // Nom du champ qui contient l'ID de l'utilisateur
+            final publishedBy = doc['PublishedBy'] ??
+                ''; // Nom du champ qui contient l'ID de l'utilisateur
 
             return FutureBuilder<DocumentSnapshot>(
-              future: FirebaseFirestore.instance.collection('Users').doc(publishedBy).get(),
+              future: FirebaseFirestore.instance
+                  .collection('Users')
+                  .doc(publishedBy)
+                  .get(),
               builder: (context, userSnapshot) {
                 if (userSnapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
                 if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
-                  return const SizedBox.shrink(); // Gérer le cas où l'utilisateur n'existe pas
+                  return const SizedBox
+                      .shrink(); // Gérer le cas où l'utilisateur n'existe pas
                 }
 
                 final userData = userSnapshot.data!;
                 final userImage = userData['Image'] ?? '';
+                final name = userData['Prénom'] ?? '';
+                final annee = userData['Annee'] ?? '';
+                final docId = doc.id;
+
+                print(docId.toString());
 
                 return _buildPost(
+                  docId.toString(),
                   title.toString(),
                   content.toString(),
                   postImagePath.toString(),
                   userImage.toString(),
                   tags,
+                  name.toString(),
+                  annee.toString(),
                 );
               },
             );
@@ -399,96 +421,127 @@ class _UserPageState extends State<UserPage> {
     );
   }
 
-  Widget _buildPost(String title, String content, String postImagePath, String userImage, List<String> tags) {
-    return Container(
-      margin: const EdgeInsets.all(10),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: const [
-          BoxShadow(
-            color: ui.Color.fromARGB(255, 87, 87, 87),
-            blurRadius: 5.0,
-            offset: Offset(0, 5),
+  Widget _buildPost(
+      String PostId,
+      String title,
+      String content,
+      String postImagePath,
+      String userImage,
+      List<String> tags,
+      String name,
+      String annee) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PostDetailPage(
+              postId: PostId,
+              title: title,
+              content: content,
+              postImagePath: postImagePath,
+              userImage: userImage,
+              tags: tags,
+              name: name,
+              annee: annee,
+            ),
           ),
-          BoxShadow(
-            color: ui.Color.fromARGB(255, 87, 87, 87),
-            offset: Offset(0, 0),
-          ),
-          BoxShadow(
-            color: ui.Color.fromARGB(255, 255, 255, 255),
-            offset: Offset(5, 0),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Center(
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                Text(
-                  content,
-                  style: const TextStyle(
-                    color: Colors.black,
-                    fontSize: 15,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                if (postImagePath.isNotEmpty)
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 0),
-                      child: Image.network(
-                        postImagePath,
-                        width: 500, // Ajustez la largeur de l'image selon vos besoins
-                        height: 200, // Ajustez la hauteur de l'image selon vos besoins
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.grey.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: const [
+            BoxShadow(
+              color: Color.fromARGB(255, 87, 87, 87),
+              blurRadius: 5.0,
+              offset: Offset(0, 5),
+            ),
+            BoxShadow(
+              color: Color.fromARGB(255, 87, 87, 87),
+              offset: Offset(0, 0),
+            ),
+            BoxShadow(
+              color: Color.fromARGB(255, 255, 255, 255),
+              offset: Offset(5, 0),
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Center(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                const SizedBox(height: 8),
-              ],
-            ),
-          ),
-          Positioned(
-            top: 10,
-            right: 10,
-            child: CircleAvatar(
-              backgroundImage: userImage.isNotEmpty ? NetworkImage(userImage) : null,
-              child: userImage.isEmpty ? const Icon(Icons.person) : null,
-              radius: 20,
-            ),
-          ),
-          Positioned(
-            left: 0,
-            bottom: 0,
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: tags.map((tag) {
-                return Text(
-                  '#$tag', // Ajoutez un symbole hashtag devant chaque tag
-                  style: const TextStyle(
-                    fontSize: 10, // Réduisez la taille du texte selon vos besoins
+                  Text(
+                    content,
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 15,
+                    ),
                   ),
-                );
-              }).toList(),
+                  const SizedBox(height: 8),
+                  if (postImagePath.isNotEmpty)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 0),
+                        child: Image.network(
+                          postImagePath,
+                          width:
+                              500, // Ajustez la largeur de l'image selon vos besoins
+                          height:
+                              200, // Ajustez la hauteur de l'image selon vos besoins
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                ],
+              ),
             ),
-          ),
-        ],
+            Positioned(
+              top: 10,
+              right: 10,
+              child: CircleAvatar(
+                backgroundImage:
+                    userImage.isNotEmpty ? NetworkImage(userImage) : null,
+                child: userImage.isEmpty ? const Icon(Icons.person) : null,
+                radius: 20,
+              ),
+            ),
+            Positioned(
+              left: 0,
+              bottom: 0,
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: tags.map((tag) {
+                  return Text(
+                    '#$tag', // Ajoutez un symbole hashtag devant chaque tag
+                    style: const TextStyle(
+                      fontSize:
+                          10, // Réduisez la taille du texte selon vos besoins
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -34,35 +34,6 @@ class _ReceptPageState extends State<ReceptPage> {
     });
   }
 
-  void _showNewConversationDialog() {
-    TextEditingController emailController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Démarrer une nouvelle conversation'),
-          content: TextField(
-            controller: emailController,
-            decoration: const InputDecoration(hintText: 'Email de l\'utilisateur'),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () async {
-                String email = emailController.text.trim();
-                if (email.isNotEmpty) {
-                  await _startNewConversation(email);
-                  Navigator.of(context).pop();
-                }
-              },
-              child: const Text('Commencer'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   Future<void> _startNewConversation(String email) async {
     // Get the current user's ID
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -150,12 +121,6 @@ class _ReceptPageState extends State<ReceptPage> {
         backgroundColor: const Color(0xFF5F67EA),
         elevation: 0,
         automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: _showNewConversationDialog,
-          ),
-        ],
       ),
       body: Column(
         children: [

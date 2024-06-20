@@ -10,6 +10,7 @@ import 'dart:io';
 import 'dart:async';
 import 'package:page_transition/page_transition.dart';
 import 'package:confetti/confetti.dart';
+import 'package:tutorinsa/pages/Common/home.dart';
 import 'package:tutorinsa/pages/Tutor/TutorPosts.dart';
 import 'package:tutorinsa/pages/User/posts.dart';
 
@@ -255,6 +256,14 @@ class _SubscribePage3State extends State<SubscribePage3> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
+  bool _obscureText = true;
+
+  void _togglePasswordVisibility() {
+    setState(() {
+      _obscureText = !_obscureText;
+    });
+  }
+
   // Corrected RegExp pattern for email validation
   static final RegExp _emailRegExp = RegExp(
     r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$",
@@ -310,14 +319,21 @@ class _SubscribePage3State extends State<SubscribePage3> {
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _passwordController,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Password',
                       labelStyle: TextStyle(color: Colors.white),
                       border: OutlineInputBorder(),
                       fillColor: Color.fromARGB(57, 61, 37, 168),
                       filled: true,
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscureText ? Icons.visibility : Icons.visibility_off,
+                          color: Colors.white,
+                        ),
+                        onPressed: _togglePasswordVisibility,
+                      ),
                     ),
-                    obscureText: true,
+                    obscureText: _obscureText,
                     style: const TextStyle(color: Color.fromARGB(255, 255, 255, 255)),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -702,11 +718,11 @@ class _CongratulationsPageState extends State<CongratulationsPage> {
   void _redirectUser() {
     if (widget.isTuteur) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const TutorPostsPage()),
+        MaterialPageRoute(builder: (context) => const HomePage()),
       );
     } else {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const UserPage()),
+        MaterialPageRoute(builder: (context) => const HomePage()),
       );
     }
   }
