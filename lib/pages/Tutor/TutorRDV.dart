@@ -205,18 +205,60 @@ class _TutorRDVPageState extends State<TutorRDVPage> {
     );
   }
 
-  void _acceptAppointment(
-      String appointmentId, Map<String, dynamic> appointmentData, String? studentName) async {
-    await FirebaseFirestore.instance.collection('Rendezvousacceptes').add({
-      ...appointmentData,
-      'AcceptedBy': userId, // Ajoutez l'ID du tuteur qui accepte le rendez-vous
-    });
+  void _acceptAppointment(String appointmentId, Map<String, dynamic> appointmentData, String? studentName) async {
+  await FirebaseFirestore.instance.collection('Rendezvousacceptes').add({
+    ...appointmentData,
+    'AcceptedBy': userId, // Ajoutez l'ID du tuteur qui accepte le rendez-vous
+  });
 
-    await FirebaseFirestore.instance
-        .collection('Rendezvous')
-        .doc(appointmentId)
-        .delete();
+  await FirebaseFirestore.instance.collection('Rendezvous').doc(appointmentId).delete();
+
+  // Obtenez l'ID de l'étudiant qui a initié le rendez-vous
+  final String studentId = appointmentData['InitiatedBy'];
+
+  // Vérifiez si une conversation existe entre le tuteur et l'étudiant
+  QuerySnapshot existingConversations = await FirebaseFirestore.instance
+      .collection('conversations')
+      .where('participants', arrayContains: userId)
+      .get();
+
+  DocumentSnapshot? conversationDoc;
+  for (var doc in existingConversations.docs) {
+    List<dynamic> participants = doc['participants'];
+    if (participants.contains(studentId)) {
+      conversationDoc = doc;
+      break;
+    }
   }
+
+  String conversationId;
+  if (conversationDoc == null) {
+    // Si aucune conversation n'existe, créez-en une nouvelle
+    DocumentReference newConversation = await FirebaseFirestore.instance.collection('conversations').add({
+      'participants': [userId, studentId],
+      'lastMessage': 'Ce tuteur a accepté votre demande de rendez-vous',
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+    conversationId = newConversation.id;
+  } else {
+    // Utilisez l'ID de la conversation existante
+    conversationId = conversationDoc.id;
+  }
+
+  // Ajoutez le message à la conversation
+  await FirebaseFirestore.instance.collection('conversations').doc(conversationId).collection('messages').add({
+    'text': 'Ce tuteur a accepté votre demande de rendez-vous',
+    'senderId': userId,
+    'timestamp': FieldValue.serverTimestamp(),
+  });
+
+  // Mettez à jour la conversation avec le dernier message envoyé
+  await FirebaseFirestore.instance.collection('conversations').doc(conversationId).update({
+    'lastMessage': 'Ce tuteur a accepté votre demande de rendez-vous',
+    'timestamp': FieldValue.serverTimestamp(),
+  });
+}
+
 
   void _refuseAppointment(
       String appointmentId, Map<String, dynamic> appointmentData) {
